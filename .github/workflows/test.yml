@@ -12,3 +12,5 @@ jobs:
       - name: Test add-mask
         run: |
           echo "::add-mask::Mona The Octocat"
+          echo "Mona The Octocat"
+          echo "Mona The Octocat2"
