@@ -1,0 +1,14 @@
+name: Test GHA
+on:
+  push:
+    branches: main
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test add-mask
+        run: |
+          echo "::add-mask::Mona The Octocat"
