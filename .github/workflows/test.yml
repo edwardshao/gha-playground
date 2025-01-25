@@ -14,12 +14,12 @@ jobs:
           echo "::add-mask::Mona The Octocat"
           echo "Mona The Octocat"
           echo "Mona The Octocat2"
-     - name: Test SECRET_ACCESS_TOKEN
-       run: >-
-         gh secret
-         set 'API_KEY'
-         --body "$(date +%s)" 
-         --repo ${{ github.repository }}
-       env:
-         GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
+      - name: Test SECRET_ACCESS_TOKEN
+        run: >-
+          gh secret
+          set 'API_KEY'
+          --body "$(date +%s)" 
+          --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
 
