@@ -7,6 +7,10 @@ on:
                 description: 'URL to download'
                 required: true
                 type: string
+            output:
+                description: 'Output filename'
+                required: true
+                type: string
 
 jobs:
     download:
@@ -26,7 +30,7 @@ jobs:
 
             - name: Get filename
               run: |
-                    filename=$(yt-dlp --get-filename ${{ inputs.dl_url }})
+                    filename=$(yt-dlp --get-filename "${{ inputs.output }}.%(ext)s" ${{ inputs.dl_url }})
                     echo "Filename: $filename"
                     if [ -z "$filename" ]; then
                         echo "Error: Filename could not be determined."
