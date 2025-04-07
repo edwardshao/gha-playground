@@ -16,18 +16,20 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
 
-            - name: Install yt-dlp
-              run: |
-                    sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-                    sudo chmod a+rx /usr/local/bin/yt-dlp
-            - name: Decode and save cookies
-              run: |
-                    echo "${{ secrets.YT_COOKIES }}" | base64 -d > yt-cookies.txt
+            - name: Setup yt-dlp
+              uses: AnimMouse/setup-yt-dlp@v3
+
+            - name: Setup yt-dlp YouTube cookies
+              uses: AnimMouse/setup-yt-dlp/cookies@v3
+              with:
+                cookies: ${{ secrets.YT_COOKIES }}
+
             - name: Download video
               run: |
-                    yt-dlp ${{ inputs.dl_url }} --cookies yt-cookies.txt
+                    yt-dlp ${{ inputs.dl_url }}
+                    
             - name: List downloaded files
               run: |
                     echo "Downloaded files:"
-                    ls -l
+                    ls -lh
                     echo "Download complete!"
