@@ -6,10 +6,6 @@ on:
         description: 'URL to download'
         required: true
         type: string
-      output:
-        description: 'Output filename'
-        required: true
-        type: string
 jobs:
   download:
     runs-on: ubuntu-latest
