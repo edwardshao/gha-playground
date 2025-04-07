@@ -7,11 +7,6 @@ on:
                 description: 'URL to download'
                 required: true
                 type: string
-            output_file:
-                description: 'Output file name'
-                required: true
-                type: string
-                default: 'video.webm'
 
 jobs:
     download:
@@ -29,9 +24,19 @@ jobs:
               with:
                 cookies: ${{ secrets.YT_COOKIES }}
 
+            - name: Get filename
+              run: |
+                    filename=$(yt-dlp --get-filename ${{ inputs.dl_url }})
+                    echo "Filename: $filename"
+                    if [ -z "$filename" ]; then
+                        echo "Error: Filename could not be determined."
+                        exit 1
+                    fi
+                    echo "output=$filename" >> $GITHUB_ENV
+
             - name: Download video
               run: |
-                    yt-dlp ${{ inputs.dl_url }} -o ${{ inputs.output_file }}
+                    yt-dlp ${{ inputs.dl_url }}
 
             - name: Update yt-dlp YouTube cookies
               uses: AnimMouse/setup-yt-dlp/cookies/update@v3
@@ -44,3 +49,12 @@ jobs:
                     echo "Downloaded files:"
                     ls -lh
                     echo "Download complete!"
+
+            - name: Upload to gdrive
+              uses: adityak74/google-drive-upload-git-action@main
+              with:
+                credentials: ${{ secrets.GSA_CRED }}
+                filename: ${{ env.output }}
+                folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
+                name: ${{ env.output }}
+                overwrite: "true"
