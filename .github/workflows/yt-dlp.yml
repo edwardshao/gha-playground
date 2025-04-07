@@ -40,7 +40,7 @@ jobs:
 
             - name: Download video
               run: |
-                    yt-dlp ${{ inputs.dl_url }}
+                    yt-dlp ${{ inputs.dl_url }} -o "${{ inputs.output }}.%(ext)s"
 
             - name: Update yt-dlp YouTube cookies
               uses: AnimMouse/setup-yt-dlp/cookies/update@v3
