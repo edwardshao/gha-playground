@@ -24,16 +24,17 @@ jobs:
           cookies: ${{ secrets.YT_COOKIES }}
       - name: Get filename
         run: |
-          filename=$(yt-dlp --print filename -o "${{ inputs.output }}.%(ext)s" ${{ inputs.dl_url }})
+          filename=$(yt-dlp --get-filename ${{ inputs.dl_url }})
           echo "Filename: $filename"
           if [ -z "$filename" ]; then
             echo "Error: Filename could not be determined."
             exit 1
           fi
-          echo "output=$filename" >> $GITHUB_ENV
+          quoted_filename="\"$filename\""
+          echo "output=$quoted_filename" >> $GITHUB_ENV
       - name: Download video
         run: |
-          yt-dlp ${{ inputs.dl_url }} -o "${{ inputs.output }}.%(ext)s"
+          yt-dlp ${{ inputs.dl_url }}
       - name: Update yt-dlp YouTube cookies
         uses: AnimMouse/setup-yt-dlp/cookies/update@v3
         with:
