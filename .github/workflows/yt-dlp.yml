@@ -7,6 +7,11 @@ on:
                 description: 'URL to download'
                 required: true
                 type: string
+            output_file:
+                description: 'Output file name'
+                required: true
+                type: string
+                default: 'video.webm'
 
 jobs:
     download:
@@ -26,8 +31,14 @@ jobs:
 
             - name: Download video
               run: |
-                    yt-dlp ${{ inputs.dl_url }}
-                    
+                    yt-dlp ${{ inputs.dl_url }} -o ${{ inputs.output_file }}
+
+            - name: Update yt-dlp YouTube cookies
+              uses: AnimMouse/setup-yt-dlp/cookies/update@v3
+              with:
+                cookies_secret_name: YT_COOKIES
+                token: ${{ secrets.SECRET_ACCESS_TOKEN }}
+
             - name: List downloaded files
               run: |
                     echo "Downloaded files:"
