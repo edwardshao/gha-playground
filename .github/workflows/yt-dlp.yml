@@ -20,11 +20,12 @@ jobs:
               run: |
                     sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
                     sudo chmod a+rx /usr/local/bin/yt-dlp
-
+            - name: Decode and save cookies
+              run: |
+                    echo "${{ secrets.YT_COOKIES }}" | base64 -d > yt-cookies.txt
             - name: Download video
               run: |
-                    yt-dlp ${{ inputs.dl_url }}
-
+                    yt-dlp ${{ inputs.dl_url }} --cookies yt-cookies.txt
             - name: List downloaded files
               run: |
                     echo "Downloaded files:"
