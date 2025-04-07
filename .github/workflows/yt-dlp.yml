@@ -26,7 +26,8 @@ jobs:
             echo "Error: Filename could not be determined."
             exit 1
           fi
-          quoted_filename="\"$filename\""
+          quoted_filename="'$filename'"
+          echo "Quoted filename: $quoted_filename"
           echo "output=$quoted_filename" >> $GITHUB_ENV
       - name: Download video
         run: |
