@@ -23,8 +23,9 @@ jobs:
         env:
           GARMIN_TOKENS_BASE64: ${{ secrets.GARMIN_TOKENS_BASE64 }}
           GARMIN_STEPS_LAST_SYNCED_DATE: ${{ vars.GARMIN_STEPS_LAST_SYNCED_DATE }}
+          GOOGLE_AUTH_USER_JSON_BASE64: ${{ secrets.GOOGLE_AUTH_USER_JSON_BASE64 }}
         run: |
-          python garmin_steps.py
+          python garmin_steps_to_google_fit.py
       - name: Save the new_last_synced_date_file to variables
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
