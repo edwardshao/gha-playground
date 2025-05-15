@@ -20,4 +20,4 @@ jobs:
           GARMIN_TOKENS_BASE64: ${{ secrets.GARMIN_TOKENS_BASE64 }}
           GARMIN_STEPS_LAST_SYNCED_DATE: ${{ vars.GARMIN_STEPS_LAST_SYNCED_DATE }}
         run: |
-          python garmin_steps_syncer.py
+          python garmin_steps.py
