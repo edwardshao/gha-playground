@@ -186,7 +186,6 @@ if __name__ == "__main__":
 
             print(f"===============================")
             print(f"Steps data for {current_date}")
-            print(json.dumps(steps_data, indent=4))
             filtered_steps = filter_steps_data(steps_data)
             print(json.dumps(filtered_steps, indent=4))
             # TODO: sync to google fit

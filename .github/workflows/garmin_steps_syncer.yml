@@ -21,3 +21,8 @@ jobs:
           GARMIN_STEPS_LAST_SYNCED_DATE: ${{ vars.GARMIN_STEPS_LAST_SYNCED_DATE }}
         run: |
           python garmin_steps.py
+      - name: Save the new_last_synced_date_file to variables
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
+        run: |
+          gh variable set 'GARMIN_STEPS_LAST_SYNCED_DATE' < ./new_last_synced_date.txt
