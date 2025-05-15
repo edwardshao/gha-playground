@@ -1,6 +1,10 @@
 name: Garmin Steps Syncer
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 19 * * *'  # UCT+8 03:00
+    - cron: '0 3 * * *'   # UCT+8 11:00
+    - cron: '0 11 * * *'  # UCT+8 19:00
 jobs:
   sync_steps:
     runs-on: ubuntu-latest
@@ -20,4 +24,9 @@ jobs:
           GARMIN_TOKENS_BASE64: ${{ secrets.GARMIN_TOKENS_BASE64 }}
           GARMIN_STEPS_LAST_SYNCED_DATE: ${{ vars.GARMIN_STEPS_LAST_SYNCED_DATE }}
         run: |
-          python garmin_steps_syncer.py
+          python garmin_steps.py
+      - name: Save the new_last_synced_date_file to variables
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
+        run: |
+          gh variable set 'GARMIN_STEPS_LAST_SYNCED_DATE' < ./new_last_synced_date.txt
