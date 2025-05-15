@@ -1,0 +1,23 @@
+name: Garmin Steps Syncer
+on:
+  workflow_dispatch:
+jobs:
+  sync_steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run syncer
+        env:
+          GARMIN_TOKENS_BASE64: ${{ secrets.GARMIN_TOKENS_BASE64 }}
+          GARMIN_STEPS_LAST_SYNCED_DATE: ${{ vars.GARMIN_STEPS_LAST_SYNCED_DATE }}
+        run: |
+          python garmin_steps_syncer.py
