@@ -38,15 +38,11 @@ def init_api(email, password):
     try:
         # Using Oauth1 and Oauth2 tokens from base64 encoded string
         print(
-            f"Trying to login to Garmin Connect using token data from file '{tokenstore_base64}'...\n"
+            "Trying to login to Garmin Connect using token data from GARMIN_TOKENS_BASE64 env...\n"
         )
 
-        dir_path = os.path.expanduser(tokenstore_base64)
-        with open(dir_path, "r") as token_file:
-            tokenstore = token_file.read()
-        
         garmin = Garmin()
-        garmin.login(tokenstore)
+        garmin.login(tokenstore_base64)
         
     except (FileNotFoundError, GarthHTTPError, GarminConnectAuthenticationError):
         # Session is expired. You'll need to log in again
@@ -166,6 +162,10 @@ if __name__ == "__main__":
         # check GARMIN_STEPS_LAST_SYNCED_DATE environment variable
         if not last_synced_date:
             print("GARMIN_STEPS_LAST_SYNCED_DATE environment variable is not set.")
+            exit(1)
+        # check GARMIN_TOKENS_BASE64 environment variable
+        if not tokenstore_base64:
+            print("GARMIN_TOKENS_BASE64 environment variable is not set.")
             exit(1)
 
         api = init_api(email, password)
