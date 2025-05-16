@@ -34,12 +34,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
         run: |
           gh variable set 'GARMIN_STEPS_LAST_STARTGMT' < ./new_last_startGMT_file.txt
+          echo "GARMIN_STEPS_LAST_STARTGMT is updated."
       - name: Save the refreshed_auth_user_json_base64_file to secrets if exists
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
         run: |
           if [ -f ./refreshed_auth_user_json_base64_file.txt ]; then
             gh secret set 'GOOGLE_AUTH_USER_JSON_BASE64' < ./refreshed_auth_user_json_base64_file.txt
+            echo "GOOGLE_AUTH_USER_JSON_BASE64 is updated."
           else
             echo "No refreshed_auth_user_json_base64_file.txt found, skipping secret update."
           fi
