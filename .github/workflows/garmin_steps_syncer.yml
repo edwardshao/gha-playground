@@ -8,6 +8,9 @@ on:
 jobs:
   sync_steps:
     runs-on: ubuntu-latest
+    defaults:
+        run:
+            working-directory: ./garmin-steps-syncer
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
