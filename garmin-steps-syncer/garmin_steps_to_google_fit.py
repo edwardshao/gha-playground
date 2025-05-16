@@ -30,6 +30,9 @@ new_last_startGMT_file = "./new_last_startGMT_file.txt"
 
 GOOGLE_FIT_API_SCOPES = ['https://www.googleapis.com/auth/fitness.activity.write']
 
+UTC_TIMEZONE = timezone.utc
+TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
+
 def get_credentials():
     """Get user credentials."""
 
@@ -114,7 +117,7 @@ def get_steps_by_date(api, date):
     except Exception as e:
         print(f"Error when getting steps: {e}")
 
-def parse_datetime_with_timezone(date_str, format_str="%Y-%m-%dT%H:%M:%S.%f", tz=timezone.utc):
+def parse_datetime_with_timezone(date_str, format_str="%Y-%m-%dT%H:%M:%S.%f", tz=UTC_TIMEZONE):
     """
     Parse a datetime string and ensure it has the correct timezone.
     :param date_str: The datetime string to parse.
@@ -145,7 +148,7 @@ def is_one_day_steps_are_all_synced(steps_data):
         if not last_entry_startGMT:
             return False
 
-        last_entry_startUTC8 = last_entry_startGMT.astimezone(timezone(timedelta(hours=8)))
+        last_entry_startUTC8 = last_entry_startGMT.astimezone(TAIPEI_TIMEZONE)
         if last_entry_startUTC8.hour != 23 or last_entry_startUTC8.minute != 45:
             return False
     except Exception as e:
@@ -377,10 +380,10 @@ if __name__ == "__main__":
             print("Fail to init Garmin API")
             exit(1)
 
-        last_startUTC8_date = last_startGMT_date.astimezone(timezone(timedelta(hours=8)))
+        last_startUTC8_date = last_startGMT_date.astimezone(TAIPEI_TIMEZONE)
         current_date = last_startUTC8_date.date()
         steps_data = []
-        while current_date <= datetime.now(tz=timezone(timedelta(hours=8))).date():
+        while current_date <= datetime.now(tz=TAIPEI_TIMEZONE).date():
             steps_data = get_steps_by_date(garmin_api, current_date)
             if not steps_data:
                 print(f"No steps data found for {current_date}.")
