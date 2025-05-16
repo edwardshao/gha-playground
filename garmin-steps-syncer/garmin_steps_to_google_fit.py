@@ -26,7 +26,7 @@ tokenstore_base64 = os.getenv("GARMIN_TOKENS_BASE64")
 google_authorized_user_json_base64 = os.getenv("GOOGLE_AUTH_USER_JSON_BASE64")
 
 last_startGMT = os.getenv("GARMIN_STEPS_LAST_STARTGMT") # "2025-05-15T20:30:00.0"
-new_last_startGMT_file = "./new_last_startGMT.txt"
+new_last_startGMT_file = "./new_last_startGMT_file.txt"
 
 GOOGLE_FIT_API_SCOPES = ['https://www.googleapis.com/auth/fitness.activity.write']
 
@@ -373,7 +373,7 @@ if __name__ == "__main__":
             print(json.dumps(filtered_steps, indent=4))
 
             # insert steps data to google fit
-            #insert_steps_data_list(google_fit_api, google_fit_data_source_id, filtered_steps)
+            insert_steps_data_list(google_fit_api, google_fit_data_source_id, filtered_steps)
 
             # update last_startGMT_date to the last entry of steps data
             last_startGMT_date = datetime.strptime(
