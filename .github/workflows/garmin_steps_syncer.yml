@@ -29,8 +29,19 @@ jobs:
           GOOGLE_AUTH_USER_JSON_BASE64: ${{ secrets.GOOGLE_AUTH_USER_JSON_BASE64 }}
         run: |
           python garmin_steps_to_google_fit.py
-      - name: Save the new_last_synced_date_file to variables
+      - name: Save the new_last_startGMT_file to variables
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
         run: |
           gh variable set 'GARMIN_STEPS_LAST_STARTGMT' < ./new_last_startGMT_file.txt
+          echo "GARMIN_STEPS_LAST_STARTGMT is updated."
+      - name: Save the refreshed_auth_user_json_base64_file to secrets if exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
+        run: |
+          if [ -f ./refreshed_auth_user_json_base64_file.txt ]; then
+            gh secret set 'GOOGLE_AUTH_USER_JSON_BASE64' < ./refreshed_auth_user_json_base64_file.txt
+            echo "GOOGLE_AUTH_USER_JSON_BASE64 is updated."
+          else
+            echo "No refreshed_auth_user_json_base64_file.txt found, skipping secret update."
+          fi
