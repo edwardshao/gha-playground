@@ -25,10 +25,13 @@ tokenstore_base64 = os.getenv("GARMIN_TOKENS_BASE64")
 
 google_authorized_user_json_base64 = os.getenv("GOOGLE_AUTH_USER_JSON_BASE64")
 
-last_synced_date = os.getenv("GARMIN_STEPS_LAST_SYNCED_DATE") # "2025-05-13" in GMT+0800
-new_last_synced_date_file = "./new_last_synced_date.txt"
+last_startGMT = os.getenv("GARMIN_STEPS_LAST_STARTGMT") # "2025-05-15T20:30:00.0"
+new_last_startGMT_file = "./new_last_startGMT_file.txt"
 
 GOOGLE_FIT_API_SCOPES = ['https://www.googleapis.com/auth/fitness.activity.write']
+
+UTC_TIMEZONE = timezone.utc
+TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 
 def get_credentials():
     """Get user credentials."""
@@ -114,56 +117,76 @@ def get_steps_by_date(api, date):
     except Exception as e:
         print(f"Error when getting steps: {e}")
 
+def parse_datetime_with_timezone(date_str, format_str="%Y-%m-%dT%H:%M:%S.%f", tz=UTC_TIMEZONE):
+    """
+    Parse a datetime string and ensure it has the correct timezone.
+    :param date_str: The datetime string to parse.
+    :param format_str: The format of the datetime string.
+    :param tz: The timezone to apply if not already present.
+    :return: A timezone-aware datetime object.
+    """
+    try:
+        dt = datetime.strptime(date_str, format_str)
+        return dt.replace(tzinfo=tz)
+    except ValueError as e:
+        print(f"Error parsing datetime '{date_str}': {e}")
+        return None
+
 def is_one_day_steps_are_all_synced(steps_data):
     """
-    Check if all steps data are synced for one day
-        :param steps_data: steps data (list of dict)
-        :return: True if all steps data are synced, False otherwise
+    Check if all steps data are synced for one day.
+    :param steps_data: steps data (list of dict)
+    :return: True if all steps data are synced, False otherwise
     """
     if not steps_data:
         return False
 
-    # check startGMT of the last entry is 23:45:00 in GMT+0800
+    # Check startGMT of the last entry is 23:45:00 in UTC+0800
     last_entry = steps_data[-1]
-    last_entry_startGMT = datetime.strptime(
-        last_entry["startGMT"], "%Y-%m-%dT%H:%M:%S.%f"
-    ).replace(tzinfo=timezone.utc)
-    last_entry_startGMT = last_entry_startGMT.astimezone(timezone(timedelta(hours=8)))
-    if last_entry_startGMT.hour != 23 or last_entry_startGMT.minute != 45:
+    try:
+        last_entry_startGMT = parse_datetime_with_timezone(last_entry["startGMT"])
+        if not last_entry_startGMT:
+            return False
+
+        last_entry_startUTC8 = last_entry_startGMT.astimezone(TAIPEI_TIMEZONE)
+        if last_entry_startUTC8.hour != 23 or last_entry_startUTC8.minute != 45:
+            return False
+    except Exception as e:
+        print(f"Unexpected error in is_one_day_steps_are_all_synced: {e}")
         return False
 
     return True
 
-def filter_steps_data(steps_data):
+def filter_steps_data(steps_data, last_startGMT_date):
     """
-    filter steps data, keep only the items where steps is not 0,
-        and convert time to milliseconds.
-    
+    Filter steps data, keep only the items where steps is not 0,
+    and convert time to milliseconds.
     :param steps_data: raw steps data (list of dict)
+    :param last_startGMT_date: The last synced datetime in UTC.
     :return: filtered steps data (list of dict)
     """
     filtered_data = []
-
+    last_startGMT_seconds = int(last_startGMT_date.timestamp())
     for entry in steps_data:
-        if entry["steps"] > 0:
-            # convert startGMT and endGMT to milliseconds
-            
-            startGMTMillis = int(
-                datetime.strptime(entry["startGMT"], "%Y-%m-%dT%H:%M:%S.%f")
-                .replace(tzinfo=timezone.utc)
-                .timestamp() * 1000
-            )
-            endGMTMillis = int(
-                datetime.strptime(entry["endGMT"], "%Y-%m-%dT%H:%M:%S.%f")
-                .replace(tzinfo=timezone.utc)
-                .timestamp() * 1000
-            )
+        try:
+            startGMT = parse_datetime_with_timezone(entry["startGMT"])
+            endGMT = parse_datetime_with_timezone(entry["endGMT"])
+            if not startGMT or not endGMT:
+                continue
 
-            filtered_data.append({
-                "startGMTMillis": startGMTMillis,
-                "endGMTMillis": endGMTMillis,
-                "steps": entry["steps"]
-            })
+            startGMTSeconds = int(startGMT.timestamp())
+            if entry["steps"] > 0 and startGMTSeconds > last_startGMT_seconds:
+                # Convert startGMT and endGMT to milliseconds
+                startGMTMillis = startGMTSeconds * 1000
+                endGMTMillis = int(endGMT.timestamp() * 1000)
+
+                filtered_data.append({
+                    "startGMTMillis": startGMTMillis,
+                    "endGMTMillis": endGMTMillis,
+                    "steps": entry["steps"]
+                })
+        except Exception as e:
+            print(f"Error filtering steps data for entry {entry}: {e}")
 
     return filtered_data
 
@@ -313,30 +336,37 @@ def insert_steps_data_list(service, data_source_id, steps_data_list):
 
 if __name__ == "__main__":
     try:
-        # check GARMIN_STEPS_LAST_SYNCED_DATE environment variable
-        if not last_synced_date:
-            print("GARMIN_STEPS_LAST_SYNCED_DATE environment variable is not set.")
+        # Check GARMIN_STEPS_LAST_STARTGMT environment variable
+        if not last_startGMT:
+            print("GARMIN_STEPS_LAST_STARTGMT environment variable is not set.")
             exit(1)
-        # check GARMIN_TOKENS_BASE64 environment variable
+
+        # Convert last_startGMT to datetime in UTC
+        last_startGMT_date = parse_datetime_with_timezone(last_startGMT)
+        if not last_startGMT_date:
+            print("Invalid GARMIN_STEPS_LAST_STARTGMT format.")
+            exit(1)
+
+        # Check GARMIN_TOKENS_BASE64 environment variable
         if not tokenstore_base64:
             print("GARMIN_TOKENS_BASE64 environment variable is not set.")
             exit(1)
 
-        #check GOOGLE_AUTH_USER_JSON_BASE64 environment variable
+        # Check GOOGLE_AUTH_USER_JSON_BASE64 environment variable
         if not google_authorized_user_json_base64:
             print("GOOGLE_AUTH_USER_JSON_BASE64 environment variable is not set.")
             exit(1)
 
-        # decode google_authorized_user_json_base64 base64 string
+        # Decode google_authorized_user_json_base64 base64 string
         google_authorized_user_json = json.loads(base64.b64decode(google_authorized_user_json_base64).decode("utf-8"))
 
-        # init google fit api
+        # Initialize Google Fit API
         google_fit_api = init_google_fit_api(google_authorized_user_json)
         if not google_fit_api:
             print("Fail to init Google Fit API")
             exit(1)
 
-        # get google fit data source
+        # Get Google Fit data source
         google_fit_data_source = create_or_get_google_fit_data_source(google_fit_api)
         if not google_fit_data_source or 'dataStreamId' not in google_fit_data_source:
             print("Fail to create or get Google Fit data source")
@@ -344,30 +374,37 @@ if __name__ == "__main__":
         google_fit_data_source_id = google_fit_data_source['dataStreamId']
         print(f"OK to get/create data source ID: {google_fit_data_source_id}")
 
-        # init garmin api
+        # Initialize Garmin API
         garmin_api = init_garmin_api(email, password)
         if not garmin_api:
             print("Fail to init Garmin API")
             exit(1)
 
-        # Get the last synced date
-        last_synced_date = datetime.strptime(last_synced_date, "%Y-%m-%d").date()
-
-        current_date = last_synced_date
+        last_startUTC8_date = last_startGMT_date.astimezone(TAIPEI_TIMEZONE)
+        current_date = last_startUTC8_date.date()
         steps_data = []
-        while current_date <= datetime.now(tz=timezone(timedelta(hours=8))).date():
+        while current_date <= datetime.now(tz=TAIPEI_TIMEZONE).date():
             steps_data = get_steps_by_date(garmin_api, current_date)
             if not steps_data:
                 print(f"No steps data found for {current_date}.")
                 break
 
+            filtered_steps = filter_steps_data(steps_data, last_startGMT_date)
+            if not filtered_steps:
+                print(f"No steps need to sync for {current_date}.")
+                break
+
             print(f"===============================")
-            print(f"Steps data for {current_date}")
-            filtered_steps = filter_steps_data(steps_data)
+            print(f"Steps need to sync for {current_date}")
             print(json.dumps(filtered_steps, indent=4))
 
-            # insert steps data to google fit
+            # Insert steps data to Google Fit
             insert_steps_data_list(google_fit_api, google_fit_data_source_id, filtered_steps)
+
+            # Update last_startGMT_date to the last entry of steps data
+            last_entry_startGMT = parse_datetime_with_timezone(steps_data[-1]["startGMT"])
+            if last_entry_startGMT:
+                last_startGMT_date = last_entry_startGMT
 
             if not is_one_day_steps_are_all_synced(steps_data):
                 print(f"Steps data for {current_date} are not all synced.")
@@ -375,9 +412,9 @@ if __name__ == "__main__":
 
             current_date += timedelta(days=1)
 
-        # write the new last synced date to file
-        print(f"wirte {current_date} to {new_last_synced_date_file}")
-        with open(new_last_synced_date_file, "w") as f:
-            f.write(current_date.strftime("%Y-%m-%d"))
+        # Write the new last synced date to file
+        print(f"Write {last_startGMT_date} to {new_last_startGMT_file}")
+        with open(new_last_startGMT_file, "w") as f:
+            f.write(last_startGMT_date.strftime("%Y-%m-%dT%H:%M:%S.0"))
     except Exception as e:
         print(f"Error when getting steps: {e}")
