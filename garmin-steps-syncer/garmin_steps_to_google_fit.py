@@ -24,6 +24,7 @@ tokenstore = os.getenv("GARMIN_TOKENS") or "~/.garminconnect"
 tokenstore_base64 = os.getenv("GARMIN_TOKENS_BASE64")
 
 google_authorized_user_json_base64 = os.getenv("GOOGLE_AUTH_USER_JSON_BASE64")
+refreshed_auth_user_json_base64_file = "./refreshed_auth_user_json_base64_file.txt"
 
 last_startGMT = os.getenv("GARMIN_STEPS_LAST_STARTGMT") # "2025-05-15T20:30:00.0"
 new_last_startGMT_file = "./new_last_startGMT_file.txt"
@@ -194,6 +195,7 @@ def load_auth_user_credentials(auth_user_info):
     print("Trying to load credential from auth user info...\n")
 
     credentials = Credentials.from_authorized_user_info(auth_user_info, scopes=GOOGLE_FIT_API_SCOPES)
+    refreshed = False
 
     if not credentials or not credentials.valid:
         if credentials and credentials.expired and credentials.refresh_token:
@@ -201,11 +203,12 @@ def load_auth_user_credentials(auth_user_info):
                 print("auth user credential expired, try to refresh...")
                 credentials.refresh(Request())
                 print("Refresh done")
+                refreshed = True
             except Exception as e:
                 print(f"Refresh failed: {e}")
                 credentials = None
 
-    return credentials
+    return credentials, refreshed
 
 def init_google_fit_api(auth_user_json):
     """
@@ -213,12 +216,21 @@ def init_google_fit_api(auth_user_json):
     :return: Google Fit API instance
     """
     try:
-        # Load service account credentials
-        credentials = load_auth_user_credentials(auth_user_json)
+        # Load auth user credentials
+        credentials, refreshed = load_auth_user_credentials(auth_user_json)
         if not credentials:
             print("Failed to load service account credentials.")
             return None
 
+        # If credentials were refreshed, save the new credentials to file
+        if refreshed:
+            print("Save refreshed auth user credentials to file...")
+            with open(refreshed_auth_user_json_base64_file, "w") as f:
+                f.write(base64.b64encode(credentials.to_json().encode("utf-8")).decode("utf-8"))
+            print(f"Refreshed auth user credentials saved to {refreshed_auth_user_json_base64_file}")
+
+        # Initialize Google Fit API
+        print("Initializing Google Fit API...")
         service = build('fitness', 'v1', credentials=credentials, static_discovery=False)
 
         return service
