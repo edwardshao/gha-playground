@@ -133,7 +133,7 @@ def parse_datetime_with_timezone(date_str, format_str="%Y-%m-%dT%H:%M:%S.%f", tz
         print(f"Error parsing datetime '{date_str}': {e}")
         return None
 
-def is_one_day_steps_are_all_synced(steps_data):
+def is_one_day_steps_are_all_done(steps_data):
     """
     Check if all steps data are synced for one day.
     :param steps_data: steps data (list of dict)
@@ -219,7 +219,7 @@ def init_google_fit_api(auth_user_json):
         # Load auth user credentials
         credentials, refreshed = load_auth_user_credentials(auth_user_json)
         if not credentials:
-            print("Failed to load service account credentials.")
+            print("Failed to load auth user credentials.")
             return None
 
         # If credentials were refreshed, save the new credentials to file
@@ -401,10 +401,17 @@ if __name__ == "__main__":
                 print(f"No steps data found for {current_date}.")
                 break
 
+            is_steps_are_all_done = is_one_day_steps_are_all_done(steps_data)
+
             filtered_steps = filter_steps_data(steps_data, last_startGMT_date)
             if not filtered_steps:
-                print(f"No steps need to sync for {current_date}.")
-                break
+                if is_steps_are_all_done:
+                    print(f"All steps data for {current_date} are already synced. Try next day.")
+                    current_date += timedelta(days=1)
+                    continue
+                else:
+                    print(f"No steps need to sync for {current_date}.")
+                    break
 
             print(f"===============================")
             print(f"Steps need to sync for {current_date}")
@@ -418,7 +425,7 @@ if __name__ == "__main__":
             if last_entry_startGMT:
                 last_startGMT_date = last_entry_startGMT
 
-            if not is_one_day_steps_are_all_synced(steps_data):
+            if not is_steps_are_all_done:
                 print(f"Steps data for {current_date} are not all synced.")
                 break
 
