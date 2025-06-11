@@ -239,7 +239,7 @@ def init_google_fit_api(auth_user_json):
         return None
 
 def create_or_get_google_fit_data_source(service, data_source_id_suffix="garmin-steps-syncer"):
-    project_number_string = "572777066572"  # Google Cloud project number
+    project_number_string = "453184793678"  # Google Cloud project number
     manufacturer = "EDJY Projects"
     model = "GarminConnectStepsSyncer"
     uid = f"vdev-{data_source_id_suffix}"
