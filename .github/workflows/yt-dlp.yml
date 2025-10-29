@@ -6,6 +6,11 @@ on:
         description: 'URL to download'
         required: true
         type: string
+      music_only:
+        description: 'If true, download audio-only and convert to mp3'
+        required: false
+        default: false
+        type: boolean
 jobs:
   download:
     runs-on: ubuntu-latest
@@ -20,8 +25,13 @@ jobs:
           cookies: ${{ secrets.YT_COOKIES }}
       - name: Setup file glob
         run: |
-          ext=$(yt-dlp --print ext ${{ inputs.dl_url }})
-          echo "Filename extension: $ext"
+          if [ "${{ inputs.music_only }}" = "true" ]; then
+            ext=mp3
+            echo "Music-only mode enabled — forcing extension: $ext"
+          else
+            ext=$(yt-dlp --print ext "${{ inputs.dl_url }}")
+            echo "Filename extension: $ext"
+          fi
           if [ -z "$ext" ]; then
             echo "Error: Filename extension could not be determined."
             exit 1
@@ -31,7 +41,12 @@ jobs:
           echo "file_glob=$file_glob" >> $GITHUB_ENV
       - name: Download video
         run: |
-          yt-dlp ${{ inputs.dl_url }}
+          if [ "${{ inputs.music_only }}" = "true" ]; then
+            echo "Downloading audio only and converting to mp3..."
+            yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 "${{ inputs.dl_url }}"
+          else
+            yt-dlp "${{ inputs.dl_url }}"
+          fi
       - name: Update yt-dlp YouTube cookies
         uses: AnimMouse/setup-yt-dlp/cookies/update@v3
         with:
