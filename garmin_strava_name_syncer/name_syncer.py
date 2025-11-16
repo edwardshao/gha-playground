@@ -344,3 +344,4 @@ if __name__ == "__main__":
                 print("ℹ️ No Garmin activities found to sync.")
     except Exception as e:
         print(f"Error when syncing activity name: {e}")
+        exit(1)
