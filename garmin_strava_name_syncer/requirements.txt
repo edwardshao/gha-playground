@@ -1,0 +1,2 @@
+garminconnect==0.2.34
+stravalib==2.4
