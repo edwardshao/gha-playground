@@ -31,3 +31,30 @@ jobs:
           SILENCE_TOKEN_WARNINGS: "true"
         run: |
           ./name_syncer.py
+  sync_joey_activity:
+    runs-on: ubuntu-latest
+    defaults:
+        run:
+            working-directory: ./garmin_strava_name_syncer
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Decode secret and create Strava token to file
+        run: |
+          echo "${{ secrets.JOEY_STRAVA_TOKEN_BASE64 }}" | base64 --decode > strava_token.json
+      - name: Run name syncer
+        env:
+          GARMIN_TOKENS_BASE64: ${{ secrets.JOEY_GARMIN_TOKENS_BASE64 }}
+          STRAVA_CLIENT_ID: ${{ secrets.JOEY_STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.JOEY_STRAVA_CLIENT_SECRET }}
+          SILENCE_TOKEN_WARNINGS: "true"
+        run: |
+          ./name_syncer.py
