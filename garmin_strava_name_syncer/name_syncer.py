@@ -193,21 +193,25 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
 
 
 def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc):
-    print(f"=== Getting Strava activities from {after_datetime_utc.date()} to {before_datetime_utc.date()} (UTC)")
+    # convert datetime to UTC+8
+    after_datetime_utc8 = after_datetime_utc.astimezone(timezone(timedelta(hours=8)))
+    before_datetime_utc8 = before_datetime_utc.astimezone(timezone(timedelta(hours=8)))
+
+    print(f"=== Getting Strava activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()} (UTC+8)")
 
     # Initialize hashmap
     activity_map = {}
 
     # Remove time part for after and before datetime
-    after_datetime_utc_no_time = after_datetime_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    before_datetime_utc_no_time = before_datetime_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    after_datetime_utc8_no_time = after_datetime_utc8.replace(hour=0, minute=0, second=0, microsecond=0)
+    before_datetime_utc8_no_time = before_datetime_utc8.replace(hour=0, minute=0, second=0, microsecond=0)
 
     try:
         # Get activities in the date range
-        activities = strava_client.get_activities(after=after_datetime_utc_no_time, before=before_datetime_utc_no_time)
+        activities = strava_client.get_activities(after=after_datetime_utc8_no_time, before=before_datetime_utc8_no_time)
         print(f"✅ Retrieved {len(list(activities))} activities from Strava.")
     except Exception as e:
-        print(f"❌ Failed to get activities from {after_datetime_utc.date()} to {before_datetime_utc.date()}. - {e}")
+        print(f"❌ Failed to get activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}. - {e}")
         return False, {}
 
     for i, activity in enumerate(activities):
