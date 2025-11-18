@@ -137,6 +137,21 @@ def garmin_safe_api_call(api_method, *args, **kwargs):
         return False, None, f"Unexpected error: {e}"
 
 
+def _sort_and_save_activities(activity_map, output_path):
+    """Sorts activities by timestamp and saves them to a JSON file."""
+    # sort hashmap by keys
+    sorted_items = sorted(activity_map.items(), key=lambda item: datetime.strptime(item[0], '%Y-%m-%d %H:%M:%S'))
+    sorted_data = dict(sorted_items)
+
+    # Save hashmap to file
+    with open(output_path, "w", encoding='utf-8') as f:
+        json.dump(sorted_data, f, ensure_ascii=False, indent=4)
+
+    print(f"\nActivities saved to {output_path}")
+
+    return sorted_data
+
+
 def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
     # convert datetime to UTC+8
     after_datetime_utc8 = after_datetime_utc.astimezone(timezone(timedelta(hours=8)))
@@ -180,15 +195,7 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
             print(f"\tname: {activity_name}")
             print(f"\tstart_date: {activity_start_time_gmt}")
 
-    # sort hashmap by keys
-    sorted_items = sorted(activity_map.items(), key=lambda item: datetime.strptime(item[0], '%Y-%m-%d %H:%M:%S'))
-    sorted_data = dict(sorted_items)
-
-    # Save hashmap to file
-    with open(GARMIN_ACTIVITIES_OUTPUT_PATH, "w", encoding='utf-8') as f:
-        json.dump(sorted_data, f, ensure_ascii=False, indent=4)
-
-    print(f"\nActivities saved to {GARMIN_ACTIVITIES_OUTPUT_PATH}")
+    sorted_data = _sort_and_save_activities(activity_map, GARMIN_ACTIVITIES_OUTPUT_PATH)
 
     return success, sorted_data
 
@@ -235,15 +242,7 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
         print(f"❌ Failed to get activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}. - {e}")
         success = False
 
-    # sort hashmap by keys
-    sorted_items = sorted(activity_map.items(), key=lambda item: datetime.strptime(item[0], '%Y-%m-%d %H:%M:%S'))
-    sorted_data = dict(sorted_items)
-
-    # Save hashmap to file
-    with open(STRAVA_ACTIVITIES_OUTPUT_PATH, "w", encoding='utf-8') as f:
-        json.dump(sorted_data, f, ensure_ascii=False, indent=4)
-
-    print(f"\nActivities saved to {STRAVA_ACTIVITIES_OUTPUT_PATH}")
+    sorted_data = _sort_and_save_activities(activity_map, STRAVA_ACTIVITIES_OUTPUT_PATH)
 
     return success, sorted_data
 
