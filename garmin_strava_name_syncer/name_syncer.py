@@ -159,6 +159,8 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
     if not success:
         print(f"❌ Failed to get activities from {after_date} to {before_date}.")
         print(f"   Error: {error_msg}")
+    elif not activities:
+        print(f"ℹ️ Can not find activities from {after_date} to {before_date}.")
     else:
         print(f"✅ Retrieved {len(activities)} activities from Garmin Connect.")
 
@@ -205,28 +207,33 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
     after_datetime_utc8_no_time = after_datetime_utc8.replace(hour=0, minute=0, second=0, microsecond=0)
     before_datetime_utc8_no_time = before_datetime_utc8.replace(hour=0, minute=0, second=0, microsecond=0)
 
+    success = True
     try:
         # Get activities in the date range
         activities = strava_client.get_activities(after=after_datetime_utc8_no_time, before=before_datetime_utc8_no_time)
-        print(f"✅ Retrieved {len(list(activities))} activities from Strava.")
+
+        if not activities:
+            print(f"ℹ️ Can not find activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}.")
+        else:
+            print(f"✅ Retrieved {len(list(activities))} activities from Strava.")
+
+            for i, activity in enumerate(activities):
+                # Format start_date
+                formatted_start_date = activity.start_date.strftime('%Y-%m-%d %H:%M:%S')
+
+                # Add to hashmap with formatted_start_date as key
+                activity_map[formatted_start_date] = {
+                    "id": activity.id,
+                    "name": activity.name
+                }
+
+                print(f"Activity:")
+                print(f"\tid: {activity.id}")
+                print(f"\tname: {activity.name}")
+                print(f"\tstart_date: {formatted_start_date}")
     except Exception as e:
         print(f"❌ Failed to get activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}. - {e}")
-        return False, {}
-
-    for i, activity in enumerate(activities):
-        # Format start_date
-        formatted_start_date = activity.start_date.strftime('%Y-%m-%d %H:%M:%S')
-
-        # Add to hashmap with formatted_start_date as key
-        activity_map[formatted_start_date] = {
-            "id": activity.id,
-            "name": activity.name
-        }
-
-        print(f"Activity:")
-        print(f"\tid: {activity.id}")
-        print(f"\tname: {activity.name}")
-        print(f"\tstart_date: {formatted_start_date}")
+        success = False
 
     # sort hashmap by keys
     sorted_items = sorted(activity_map.items(), key=lambda item: datetime.strptime(item[0], '%Y-%m-%d %H:%M:%S'))
@@ -238,7 +245,7 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
 
     print(f"\nActivities saved to {STRAVA_ACTIVITIES_OUTPUT_PATH}")
 
-    return True, sorted_data
+    return success, sorted_data
 
 
 def strava_update_activity_name(strava_client, activity_id, new_name):
@@ -260,15 +267,16 @@ def sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava
         garmin_activity_name = garmin_activity.get("name", "N/A")
 
         if sync_ignore_list and garmin_activity_name.startswith(tuple(sync_ignore_list)):
-            print(f"Skipping Garmin activity name \"{garmin_activity_name}\" as it is in the ignore list.")
+            print(f"ℹ️ Skipping the Garmin activity ({garmin_timestamp}) as its name \"{garmin_activity_name}\" is in the ignore list.")
             continue
 
         if garmin_timestamp in strava_activities:
             strava_activity_name = strava_activities[garmin_timestamp].get("name", "N/A")
             if garmin_activity_name != strava_activity_name:
-                print(f"Timestamp: {garmin_timestamp}, Garmin Name: \"{garmin_activity_name}\", Strvav Name: \"{strava_activity_name}\" (Names differ)")
+                print(f"Timestamp: {garmin_timestamp}, Garmin Name: \"{garmin_activity_name}\", Strava Name: \"{strava_activity_name}\" (Names differ)")
 
                 strava_id = strava_activities[garmin_timestamp].get("id")
+                print(f"ℹ️ Update Garmin Name: \"{garmin_activity_name}\" to Strava activity ({strava_id})")
                 strava_update_activity_name(strava_client, strava_id, garmin_activity_name)
 
 
