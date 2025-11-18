@@ -30,7 +30,7 @@ jobs:
           STRAVA_CLIENT_SECRET: ${{ secrets.EDWARD_STRAVA_CLIENT_SECRET }}
           SILENCE_TOKEN_WARNINGS: "true"
         run: |
-          ./name_syncer.py
+          ./name_syncer.py --sync-ignore-file ./syncginore.txt
   sync_joey_activity:
     runs-on: ubuntu-latest
     defaults:
