@@ -3,6 +3,7 @@
 import base64
 import os
 import json
+import argparse
 from garminconnect import Garmin
 from datetime import datetime, timezone, timedelta
 from getpass import getpass
@@ -23,8 +24,6 @@ GARMIN_ACTIVITIES_OUTPUT_PATH="garmin_activities.json"
 
 STRAVA_TOKEN_PATH="strava_token.json"
 STRAVA_ACTIVITIES_OUTPUT_PATH="strava_activities.json"
-
-SYNC_IGNORE="syncginore.txt"
 
 def init_garmin_api():
     """Initialize Garmin API with your credentials."""
@@ -252,22 +251,15 @@ def strava_update_activity_name(strava_client, activity_id, new_name):
         print(f"❌ Fail to update activity name - {e}")
 
 
-def sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava_client):
+def sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava_client, sync_ignore_list):
     print("=== Syncing activity names from Garmin to Strava...")
 
-    # read sync ignore list
-    sync_ignore_list = []
-    with open(SYNC_IGNORE, "r", encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                sync_ignore_list.append(line)
     print(f"Sync ignore list: {sync_ignore_list}")
 
     for garmin_timestamp, garmin_activity in garmin_activities.items():
         garmin_activity_name = garmin_activity.get("name", "N/A")
 
-        if garmin_activity_name.startswith(tuple(sync_ignore_list)):
+        if sync_ignore_list and garmin_activity_name.startswith(tuple(sync_ignore_list)):
             print(f"Skipping Garmin activity name \"{garmin_activity_name}\" as it is in the ignore list.")
             continue
 
@@ -296,12 +288,27 @@ def env_pre_check():
     if not os.path.exists(STRAVA_TOKEN_PATH):
         print(f"Strava token file \"{STRAVA_TOKEN_PATH}\" does not exist.")
         exit(1)
-    if not os.path.exists(SYNC_IGNORE):
-        print(f"Sync ignore file \"{SYNC_IGNORE}\" does not exist.")
-        exit(1)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sync Garmin activity names to Strava.")
+    parser.add_argument(
+        "--sync-ignore-file",
+        type=str,
+        help="Path to a file containing a list of activity name prefixes to ignore during sync.",
+        default=None
+    )
+    args = parser.parse_args()
+
+    sync_ignore_list = []
+    if args.sync_ignore_file:
+        try:
+            with open(args.sync_ignore_file, "r", encoding='utf-8') as f:
+                sync_ignore_list = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            print(f"❌ Sync ignore file not found: {args.sync_ignore_file}")
+            exit(1)
+
     try:
         env_pre_check()
 
@@ -335,7 +342,7 @@ if __name__ == "__main__":
             if success and strava_activities:
                 print(f"Found {len(strava_activities)} activities from Strava")
                 # Sync activity names from Garmin to Strava
-                sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava_client)
+                sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava_client, sync_ignore_list)
             else:
                 if not success:
                     print("❌ Failed to get Strava activities.")
