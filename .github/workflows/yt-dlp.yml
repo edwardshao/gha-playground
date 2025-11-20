@@ -56,8 +56,8 @@ jobs:
         run: |
           echo "Downloaded files:"
           ls -lh
-          echo "Normalizing filenames by removing '?' characters..."
-          for f in *"?"*; do [ -e "$f" ] && mv "$f" "$(echo "$f" | tr -d '?')"; done
+          echo "Normalizing filenames by removing '?' and '？' characters..."
+          for f in *; do n=$(echo "$f" | sed 's/[?？]//g'); [ "$f" != "$n" ] && [ ! -e "$n" ] && mv "$f" "$n"; done
           echo "List downloaded files again:"
           ls -lh
           echo "Download complete!"
