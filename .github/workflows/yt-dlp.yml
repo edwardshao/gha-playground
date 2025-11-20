@@ -52,9 +52,13 @@ jobs:
         with:
           cookies_secret_name: YT_COOKIES
           token: ${{ secrets.SECRET_ACCESS_TOKEN }}
-      - name: List downloaded files
+      - name: List downloaded files and normalize the filenames
         run: |
           echo "Downloaded files:"
+          ls -lh
+          echo "Normalizing filenames by removing '?' characters..."
+          for f in *"?"*; do [ -e "$f" ] && mv "$f" "$(echo "$f" | tr -d '?')"; done
+          echo "List downloaded files again:"
           ls -lh
           echo "Download complete!"
       - name: Upload to gdrive
