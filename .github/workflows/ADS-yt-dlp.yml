@@ -17,12 +17,28 @@ jobs:
       - name: Setup yt-dlp
         uses: AnimMouse/setup-yt-dlp@v3
 
+      - name: Setup yt-dlp YouTube cookies
+        uses: AnimMouse/setup-yt-dlp/cookies@v3
+        with:
+          cookies: ${{ secrets.YT_COOKIES }}
+
+      - name: Insatll Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: lts
+
       - name: Get latest video URL
         id: get-url
         run: |
           URL=$(yt-dlp "https://www.youtube.com/playlist?list=PL8UOfOD7HDmIvReJUbOQoPkf6pUBBOP3n" -I 1 --print webpage_url)
           echo "Latest URL: $URL"
           echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Update yt-dlp YouTube cookies
+        uses: AnimMouse/setup-yt-dlp/cookies/update@v3
+        with:
+          cookies_secret_name: YT_COOKIES
+          token: ${{ secrets.SECRET_ACCESS_TOKEN }}
 
       - name: Trigger Download Workflow
         env:
