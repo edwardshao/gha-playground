@@ -1,0 +1,33 @@
+name: Advanced Studio Classroom Download Schedule
+
+on:
+  schedule:
+    # 9 AM Taipei Time (UTC+8) = 1 AM UTC
+    # Mon-Sat (1-6)
+    - cron: '0 1 * * 1-6'
+  workflow_dispatch:
+
+jobs:
+  fetch-and-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup yt-dlp
+        uses: AnimMouse/setup-yt-dlp@v3
+
+      - name: Get latest video URL
+        id: get-url
+        run: |
+          URL=$(yt-dlp "https://www.youtube.com/playlist?list=PL8UOfOD7HDmIvReJUbOQoPkf6pUBBOP3n" -I 1 --print webpage_url)
+          echo "Latest URL: $URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Trigger Download Workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run yt-dlp.yml \
+            -f dl_url="${{ steps.get-url.outputs.url }}" \
+            -f music_only=true
