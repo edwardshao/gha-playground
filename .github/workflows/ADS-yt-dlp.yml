@@ -2,9 +2,9 @@ name: Advanced Studio Classroom Download Schedule
 
 on:
   schedule:
-    # 9 AM Taipei Time (UTC+8) = 1 AM UTC
+    # 8:18 AM Taipei Time (UTC+8) = 0:18 AM UTC
     # Mon-Sat (1-6)
-    - cron: '0 1 * * 1-6'
+    - cron: '18 0 * * 1-6'
   workflow_dispatch:
 
 permissions:
