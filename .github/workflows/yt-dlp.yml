@@ -27,6 +27,7 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: lts
+          cache: true
       - name: Setup file glob
         run: |
           if [ "${{ inputs.music_only }}" = "true" ]; then
