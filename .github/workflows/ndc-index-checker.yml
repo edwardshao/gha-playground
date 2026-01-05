@@ -3,8 +3,8 @@ name: NDC Index Checker
 on:
   workflow_dispatch:
   schedule:
-    # Run at 00:00 UTC every day (optional, but good for automation)
-    - cron: '0 7 1,2,3,4,5 * *' # 15:00 Taipei time (GMT+8) on days 1-5 of the month
+    # Run at 10:00 UTC every day (18:00 Taipei time)
+    - cron: '0 10 * * *'
 
 jobs:
   check-index:
