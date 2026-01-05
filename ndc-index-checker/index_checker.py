@@ -4,7 +4,8 @@ import asyncio
 import json
 import os
 import urllib.request
-from playwright.async_api import async_playwright, Playwright
+
+from playwright.async_api import Playwright, async_playwright
 
 
 async def download_ndc_index_zip(playwright: Playwright, output_path: str):
