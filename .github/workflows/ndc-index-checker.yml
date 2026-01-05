@@ -1,0 +1,39 @@
+name: NDC Index Checker
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run at 00:00 UTC every day (optional, but good for automation)
+    - cron: '0 0 * * *'
+
+jobs:
+  check-index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ndc-index-checker/requirements.txt
+
+      - name: Install Playwright and Chromium
+        run: |
+          playwright install chromium --with-deps
+
+      - name: Run NDC Index Checker
+        env:
+          NDC_INDEX: ${{ vars.NDC_INDEX }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd ndc-index-checker
+          python index_checker.py
