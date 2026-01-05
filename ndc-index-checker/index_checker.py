@@ -122,10 +122,6 @@ async def main():
             with open(github_step_summary, "a") as f:
                 f.write(output)
 
-        # 讀取 GHA 的 variables "NDC_INDEX", 如果有讀到(會是一個 JSON 格式)
-        # 比較 latest_date, latest_signal, latest_signal_score 與 NDC_INDEX 中的值
-        # 如果有不同，則將 latest_date, latest_signal, latest_signal_score 變成一個 JSON 存入 GHA 的 variables
-        # 如果沒有不同就不動作
         import json
         import subprocess
 
@@ -169,15 +165,13 @@ async def main():
             if ndc_index_env:
                 try:
                     old_data_json = json.loads(ndc_index_env)
-                    old_data_str = f"{old_data_json.get('latest_date')} ({old_data_json.get('latest_signal')}, Score: {old_data_json.get('latest_signal_score')})"
+                    old_data_str = f"{old_data_json.get('latest_date')} ({old_data_json.get('latest_signal')}, 分數: {old_data_json.get('latest_signal_score')})"
                 except Exception:
                     old_data_str = ndc_index_env
 
-            new_data_str = f"{new_data['latest_date']} ({new_data['latest_signal']}, Score: {new_data['latest_signal_score']})"
+            new_data_str = f"{new_data['latest_date']} ({new_data['latest_signal']}, 分數: {new_data['latest_signal_score']})"
 
-            line_message = (
-                f"🔔 NDC Index Updated!\n\nOld: {old_data_str}\nNew: {new_data_str}"
-            )
+            line_message = f"🔔 國發會景氣對策信號 更新！\n\n上次: {old_data_str}\n這次: {new_data_str}"
 
             line_token = os.environ.get("LINE_CH_ACCESS_TOKEN")
             line_users = [
