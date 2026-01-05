@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import asyncio
+import json
+import os
+import urllib.request
 from playwright.async_api import async_playwright, Playwright
 
 
@@ -17,8 +20,28 @@ async def download_ndc_index_zip(playwright: Playwright, output_path: str):
     await browser.close()
 
 
+def send_line_message(token: str, to: str, text: str):
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    data = {
+        "to": to,
+        "messages": [{"type": "text", "text": text}],
+    }
+    req = urllib.request.Request(
+        url, data=json.dumps(data).encode("utf-8"), headers=headers
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            return response.read().decode("utf-8")
+    except Exception as e:
+        print(f"Error sending LINE message to {to}: {e}")
+        return None
+
+
 async def main():
-    import os
     import zipfile
     from pathlib import Path
 
@@ -99,10 +122,6 @@ async def main():
             with open(github_step_summary, "a") as f:
                 f.write(output)
 
-        # 讀取 GHA 的 variables "NDC_INDEX", 如果有讀到(會是一個 JSON 格式)
-        # 比較 latest_date, latest_signal, latest_signal_score 與 NDC_INDEX 中的值
-        # 如果有不同，則將 latest_date, latest_signal, latest_signal_score 變成一個 JSON 存入 GHA 的 variables
-        # 如果沒有不同就不動作
         import json
         import subprocess
 
@@ -140,6 +159,33 @@ async def main():
         if should_update:
             new_data_json = json.dumps(new_data, ensure_ascii=False)
             print(f"Update planned: {new_data_json}")
+
+            # Prepare LINE message
+            old_data_str = "None"
+            if ndc_index_env:
+                try:
+                    old_data_json = json.loads(ndc_index_env)
+                    old_data_str = f"{old_data_json.get('latest_date')} ({old_data_json.get('latest_signal')}, 分數: {old_data_json.get('latest_signal_score')})"
+                except Exception:
+                    old_data_str = ndc_index_env
+
+            new_data_str = f"{new_data['latest_date']} ({new_data['latest_signal']}, 分數: {new_data['latest_signal_score']})"
+
+            line_message = f"🔔 國發會景氣對策信號 更新！\n\n上次: {old_data_str}\n這次: {new_data_str}"
+
+            line_token = os.environ.get("LINE_CH_ACCESS_TOKEN")
+            line_users = [
+                os.environ.get("LINE_EDWARD_ID"),
+                os.environ.get("LINE_JOEY_ID"),
+            ]
+            line_users = [u for u in line_users if u]
+
+            if line_token and line_users:
+                print(f"Sending LINE notifications to {len(line_users)} users.")
+                for user_id in line_users:
+                    send_line_message(line_token, user_id, line_message)
+            else:
+                print("LINE notification skipped: Missing token or user IDs.")
 
             # Check if we are in GHA to decide whether to run gh command
             if os.environ.get("GITHUB_ACTIONS"):

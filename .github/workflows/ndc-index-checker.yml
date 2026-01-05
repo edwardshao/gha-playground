@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # Run at 00:00 UTC every day (optional, but good for automation)
-    - cron: '0 0 * * *'
+    - cron: '0 7 1,2,3,4,5 * *' # 15:00 Taipei time (GMT+8) on days 1-5 of the month
 
 jobs:
   check-index:
@@ -34,6 +34,9 @@ jobs:
         env:
           NDC_INDEX: ${{ vars.NDC_INDEX }}
           GH_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
+          LINE_CH_ACCESS_TOKEN: ${{ secrets.LINE_CH_ACCESS_TOKEN }}
+          LINE_EDWARD_ID: ${{ secrets.LINE_EDWARD_ID }}
+          LINE_JOEY_ID: ${{ secrets.LINE_JOEY_ID }}
         run: |
           cd ndc-index-checker
           python index_checker.py
