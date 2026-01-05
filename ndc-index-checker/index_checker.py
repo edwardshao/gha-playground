@@ -176,6 +176,7 @@ async def main():
             line_token = os.environ.get("LINE_CH_ACCESS_TOKEN")
             line_users = [
                 os.environ.get("LINE_EDWARD_ID"),
+                os.environ.get("LINE_JOEY_ID"),
             ]
             line_users = [u for u in line_users if u]
 
