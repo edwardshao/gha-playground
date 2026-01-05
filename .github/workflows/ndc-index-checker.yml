@@ -33,7 +33,7 @@ jobs:
       - name: Run NDC Index Checker
         env:
           NDC_INDEX: ${{ vars.NDC_INDEX }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
         run: |
           cd ndc-index-checker
           python index_checker.py
