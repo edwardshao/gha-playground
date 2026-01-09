@@ -19,6 +19,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup yt-dlp
         uses: AnimMouse/setup-yt-dlp@v3
+        with:
+          ejs-node: false
       - name: Setup yt-dlp YouTube cookies
         uses: AnimMouse/setup-yt-dlp/cookies@v3
         with:
