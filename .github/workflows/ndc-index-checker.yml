@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # Run at 10:00 UTC Mon-Fri (1-5) (18:00 Taipei time)
-    - cron: '0 10 * * 1-6'
+    - cron: '0 10 * * 1-5'
 
 jobs:
   check-index:
