@@ -166,13 +166,22 @@ async def main():
             if ndc_index_env:
                 try:
                     old_data_json = json.loads(ndc_index_env)
-                    old_data_str = f"{old_data_json.get('latest_date')} ({old_data_json.get('latest_signal')}, 分數: {old_data_json.get('latest_signal_score')})"
+                    old_signal_score = old_data_json.get("latest_signal_score")
+                    old_data_str = f"{old_data_json.get('latest_date')} ({old_data_json.get('latest_signal')}, 分數: {old_signal_score})"
                 except Exception:
                     old_data_str = ndc_index_env
 
-            new_data_str = f"{new_data['latest_date']} ({new_data['latest_signal']}, 分數: {new_data['latest_signal_score']})"
+            new_signal_score = new_data.get("latest_signal_score")
 
-            line_message = f"🔔 國發會景氣對策信號 更新！\n\n上次: {old_data_str}\n這次: {new_data_str}"
+            trend_icon = ""
+            if "old_signal_score" in locals():
+                if old_signal_score < new_signal_score:
+                    trend_icon = " 📈"
+                elif old_signal_score > new_signal_score:
+                    trend_icon = " 📉"
+
+            new_data_str = f"{new_data['latest_date']} ({new_data['latest_signal']}, 分數: {new_signal_score})"
+            line_message = f"🔔 國發會景氣對策信號 更新！\n\n上次: {old_data_str}\n這次: {new_data_str}{trend_icon}"
 
             line_token = os.environ.get("LINE_CH_ACCESS_TOKEN")
             line_users = [
