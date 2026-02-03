@@ -50,5 +50,5 @@ jobs:
           STRAVA_CLIENT_SECRET: ${{ secrets[matrix.strava_client_secret_name] }}
           SILENCE_TOKEN_WARNINGS: "true"
         run: |
-          echo "Syncing '${matrix.user}' activity to Strava"
-          ./name_syncer.py ${matrix.run_cmd_args}
+          echo "Syncing '${{matrix.user}}' activity to Strava"
+          ./name_syncer.py ${{matrix.run_cmd_args}}
