@@ -16,7 +16,7 @@ jobs:
             strava_client_secret_name: EDWARD_STRAVA_CLIENT_SECRET
             run_cmd_args: --sync-ignore-file ./syncginore.txt
           - user: joey
-            garmin_token_name: JOEY_GARMIN_TOKEN_BASE64
+            garmin_token_name: JOEY_GARMIN_TOKENS_BASE64
             strava_token_name: JOEY_STRAVA_TOKEN_BASE64
             strava_client_id_name: JOEY_STRAVA_CLIENT_ID
             strava_client_secret_name: JOEY_STRAVA_CLIENT_SECRET
