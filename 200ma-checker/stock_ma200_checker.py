@@ -295,7 +295,6 @@ def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
             if m > 12:
                 m = 1
                 y += 1
-        fetched_new = len(fetch_months)
     else:
         # Cache 不存在，下載全部 15 個月
         fetch_months = []
@@ -306,7 +305,6 @@ def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
                 m += 12
                 y -= 1
             fetch_months.append((y, m))
-        fetched_new = len(fetch_months)
 
     # 3. 逐月抓取
     newly_fetched = 0
@@ -456,18 +454,35 @@ def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
 
 
 def fetch_all(tickers: list[str], label: str, ma_window: int) -> list[dict]:
-    results = []
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     total = len(tickers)
+    results: list[dict] = []
+    done = [0]  # mutable counter for use inside nested function
+    counter_lock = threading.Lock()
+
+    # TWSE has rate limits — cap at 3 workers; yfinance can handle more
+    is_tw = any(t.endswith(".TW") for t in tickers)
+    max_workers = 3 if is_tw else 10
 
     with console.status("") as status:
-        for i, ticker in enumerate(tickers, 1):
-            status.update(
-                f"[cyan]Fetching {label} ({ma_window}MA): "
-                f"[bold]{ticker}[/bold] ({i}/{total})[/cyan]"
-            )
-            data = get_stock_data(ticker, ma_window=ma_window)
-            if data:
-                results.append(data)
+
+        def _fetch(ticker: str) -> dict | None:
+            return get_stock_data(ticker, ma_window=ma_window)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(_fetch, t): t for t in tickers}
+            for future in as_completed(futures):
+                with counter_lock:
+                    done[0] += 1
+                    status.update(
+                        f"[cyan]Fetching {label} ({ma_window}MA): "
+                        f"{done[0]}/{total}[/cyan]"
+                    )
+                data = future.result()
+                if data:
+                    results.append(data)
 
     return results
 
