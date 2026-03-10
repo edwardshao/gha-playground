@@ -1,3 +1,4 @@
+import argparse
 import sqlite3
 import warnings
 from datetime import date, datetime
@@ -72,180 +73,6 @@ def save_cache(stock_id: str, closes: dict[str, float], name: str) -> None:
             conn.commit()
     except Exception:
         pass
-
-
-# ── S&P 100 constituents (OEX) — 200MA ───────────────────────────────────────
-SP100_TICKERS = [
-    "AAPL",
-    "ABBV",
-    "ABT",
-    "ACN",
-    "ADBE",
-    "AIG",
-    "AMD",
-    "AMGN",
-    "AMT",
-    "AMZN",
-    "AON",
-    "APA",
-    "APD",
-    "APH",
-    "AVGO",
-    "AXP",
-    "BA",
-    "BAC",
-    "BIIB",
-    "BK",
-    "BKNG",
-    "BLK",
-    "BMY",
-    "BRK-B",
-    "C",
-    "CAT",
-    "CHTR",
-    "CL",
-    "CMCSA",
-    "COF",
-    "COP",
-    "COST",
-    "CRM",
-    "CSCO",
-    "CVS",
-    "CVX",
-    "D",
-    "DD",
-    "DE",
-    "DHR",
-    "DIS",
-    "DOW",
-    "DUK",
-    "EMR",
-    "EXC",
-    "F",
-    "FDX",
-    "GD",
-    "GE",
-    "GILD",
-    "GM",
-    "GOOG",
-    "GOOGL",
-    "GS",
-    "HAL",
-    "HD",
-    "HON",
-    "IBM",
-    "INTC",
-    "INTU",
-    "JNJ",
-    "JPM",
-    "KHC",
-    "KMI",
-    "KO",
-    "LIN",
-    "LLY",
-    "LMT",
-    "LOW",
-    "MA",
-    "MCD",
-    "MDLZ",
-    "MDT",
-    "MET",
-    "META",
-    "MMM",
-    "MO",
-    "MRK",
-    "MS",
-    "MSFT",
-    "NEE",
-    "NFLX",
-    "NKE",
-    "NOW",
-    "NVDA",
-    "ORCL",
-    "OXY",
-    "PEP",
-    "PFE",
-    "PG",
-    "PM",
-    "PYPL",
-    "QCOM",
-    "RTX",
-    "SBUX",
-    "SCHW",
-    "SO",
-    "SPG",
-    "T",
-    "TGT",
-    "TMO",
-    "TMUS",
-    "TXN",
-    "UNH",
-    "UNP",
-    "UPS",
-    "USB",
-    "V",
-    "VZ",
-    "WFC",
-    "WMT",
-    "XOM",
-]
-
-# ── 台灣50 (0050) 成分股 — 240MA ─────────────────────────────────────────────
-# 最新成分股（2024年12月19日生效，富時羅素定期審核）
-# 新增：貿聯-KY(3665)、致茂(2360)、健策(3653)、南亞科(2408)
-# 移除：中租-KY(5871)、和碩(4938)、上海商銀(5876)、陽明(2609)
-TW50_TICKERS = [
-    "2330.TW",  # 台積電   Taiwan Semiconductor (TSMC)
-    "2317.TW",  # 鴻海     Hon Hai / Foxconn
-    "2454.TW",  # 聯發科   MediaTek
-    "2308.TW",  # 台達電   Delta Electronics
-    "2882.TW",  # 國泰金   Cathay Financial
-    "2881.TW",  # 富邦金   Fubon Financial
-    "2303.TW",  # 聯電     UMC
-    "2891.TW",  # 中信金   CTBC Financial
-    "2886.TW",  # 兆豐金   Mega Financial
-    "2412.TW",  # 中華電   Chunghwa Telecom
-    "2884.TW",  # 玉山金   E.Sun Financial
-    "3711.TW",  # 日月光投控 ASE Technology
-    "2892.TW",  # 第一金   First Financial
-    "2880.TW",  # 華南金   Hua Nan Financial
-    "1301.TW",  # 台塑     Formosa Plastics
-    "1303.TW",  # 南亞     Nan Ya Plastics
-    "2885.TW",  # 元大金   Yuanta Financial
-    "1326.TW",  # 台化     Formosa Chemicals
-    "2002.TW",  # 中鋼     China Steel
-    "2883.TW",  # 開發金   China Development Financial
-    "5880.TW",  # 合庫金   Taiwan Cooperative Financial
-    "2382.TW",  # 廣達     Quanta Computer
-    "2887.TW",  # 台新金   Taishin Financial
-    "6505.TW",  # 台塑化   Formosa Petrochemical
-    "2379.TW",  # 瑞昱     Realtek
-    "3034.TW",  # 聯詠     Novatek Microelectronics
-    "2357.TW",  # 華碩     ASUS
-    "1216.TW",  # 統一     Uni-President Enterprises
-    "2327.TW",  # 國巨     Yageo
-    "2395.TW",  # 研華     Advantech
-    "2603.TW",  # 長榮     Evergreen Marine
-    "3008.TW",  # 大立光   Largan Precision
-    "2207.TW",  # 和泰車   Hotai Motor
-    "2301.TW",  # 光寶科   Lite-On Technology
-    "1402.TW",  # 遠東新   Far Eastern New Century
-    "2345.TW",  # 智邦     Accton Technology
-    "2890.TW",  # 永豐金   Sinopac Financial
-    "3045.TW",  # 台灣大   Taiwan Mobile
-    "2388.TW",  # 威盛     VIA Technologies
-    "2408.TW",  # 南亞科   Nanya Technology          ← 新增 2024/12
-    "2360.TW",  # 致茂     Chroma ATE                ← 新增 2024/12
-    "3653.TW",  # 健策     Giga Solution Technology  ← 新增 2024/12
-    "3665.TW",  # 貿聯-KY  Bizlink Holding           ← 新增 2024/12
-    "2376.TW",  # 技嘉     Gigabyte Technology
-    "2474.TW",  # 可成     Catcher Technology
-    "2615.TW",  # 萬海     Wan Hai Lines
-    "2352.TW",  # 佳世達   Qisda
-    "4904.TW",  # 遠傳     Far EasTone
-    "1476.TW",  # 儒鴻     Eclat Textile
-    "2353.TW",  # 宏碁     Acer
-]
 
 
 TWSE_HEADERS = {
@@ -532,7 +359,69 @@ def build_table(
     return table
 
 
+DEFAULT_SP100_FILE = Path(__file__).parent / "sp100.txt"
+DEFAULT_TW50_FILE = Path(__file__).parent / "tw50.txt"
+
+
+def parse_tickers_file(path: Path) -> list[str]:
+    """
+    從文字檔讀取 ticker 清單。
+    - 每行一個 ticker
+    - 支援 # 開頭的註解行
+    - 忽略空行
+    """
+    tickers = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if line:
+            tickers.append(line)
+    return tickers
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Stock Price vs Moving Average Scanner (S&P 100 / 台灣50)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Default files (same directory as this script):
+  S&P 100 : sp100.txt
+  台灣50  : tw50.txt
+
+Ticker file format (one ticker per line, # for comments):
+  AAPL
+  MSFT   # Microsoft
+  NVDA
+""",
+    )
+    parser.add_argument(
+        "--sp100",
+        type=Path,
+        default=DEFAULT_SP100_FILE,
+        metavar="FILE",
+        help="S&P 100 ticker list file (default: sp100.txt)",
+    )
+    parser.add_argument(
+        "--tw50",
+        type=Path,
+        default=DEFAULT_TW50_FILE,
+        metavar="FILE",
+        help="台灣50 ticker list file (default: tw50.txt)",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
+    # 驗證檔案存在
+    for path, label in [(args.sp100, "S&P 100"), (args.tw50, "台灣50")]:
+        if not path.exists():
+            console.print(f"[bold red]❌ 找不到 {label} ticker 檔案: {path}[/bold red]")
+            raise SystemExit(1)
+
+    sp100_tickers = parse_tickers_file(args.sp100)
+    tw50_tickers = parse_tickers_file(args.tw50)
+
     console.print(
         Panel.fit(
             "[bold cyan]📊 Stock Price vs Moving Average Scanner[/bold cyan]\n"
@@ -545,20 +434,22 @@ def main():
     console.print(
         f"[dim]Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/dim]"
     )
+    console.print(f"[dim]S&P 100:  {args.sp100} ({len(sp100_tickers)} tickers)[/dim]")
+    console.print(f"[dim]台灣50:   {args.tw50} ({len(tw50_tickers)} tickers)[/dim]")
     console.print(f"[dim]Cache:    {DB_PATH}[/dim]\n")
 
     # ── S&P 100 · 200MA ──────────────────────────────────────────────────────
     console.rule("[yellow]S&P 100  —  200-Day Moving Average[/yellow]")
-    sp100_data = fetch_all(SP100_TICKERS, "S&P 100", ma_window=200)
+    sp100_data = fetch_all(sp100_tickers, "S&P 100", ma_window=200)
     console.print()
     console.print(
         build_table(sp100_data, "S&P 100 — Below 200MA", currency="USD", ma_window=200)
     )
 
-    # ── 台灣50 · 240MA ───────────────────────────────────────────────────
+    # ── 台灣50 · 240MA ───────────────────────────────────────────────────────
     console.print()
     console.rule("[yellow]台灣50  —  240-Day Moving Average[/yellow]")
-    tw50_data = fetch_all(TW50_TICKERS, "台灣50", ma_window=240)
+    tw50_data = fetch_all(tw50_tickers, "台灣50", ma_window=240)
     console.print()
     console.print(
         build_table(tw50_data, "台灣50 — Below 240MA", currency="TWD", ma_window=240)
