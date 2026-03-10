@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore")
 
 console = Console()
 
-# S&P 100 constituents (OEX)
+# ── S&P 100 constituents (OEX) — 200MA ───────────────────────────────────────
 SP100_TICKERS = [
     "AAPL",
     "ABBV",
@@ -128,119 +128,215 @@ SP100_TICKERS = [
     "XOM",
 ]
 
-# Taiwan 50 constituents (0050 holdings - major ones with Yahoo Finance tickers)
+# ── 台灣50 (0050) 成分股 — 240MA ─────────────────────────────────────────────
+# 最新成分股（2024年12月19日生效，富時羅素定期審核）
+# 新增：貿聯-KY(3665)、致茂(2360)、健策(3653)、南亞科(2408)
+# 移除：中租-KY(5871)、和碩(4938)、上海商銀(5876)、陽明(2609)
 TW50_TICKERS = [
-    "2330.TW",  # TSMC
-    "2317.TW",  # Hon Hai
-    "2454.TW",  # MediaTek
-    "2308.TW",  # Delta Electronics
-    "2303.TW",  # UMC
-    "2412.TW",  # Chunghwa Telecom
-    "2882.TW",  # Cathay Financial
-    "2881.TW",  # Fubon Financial
-    "2886.TW",  # Mega Financial
-    "1301.TW",  # Formosa Plastics
-    "1303.TW",  # Nan Ya Plastics
-    "1326.TW",  # Formosa Chemicals
-    "2002.TW",  # China Steel
-    "2891.TW",  # CTBC Financial
-    "2884.TW",  # E.Sun Financial
-    "3711.TW",  # ASE Technology
-    "2892.TW",  # First Financial
-    "5880.TW",  # Chailease Holding
-    "2885.TW",  # Yuanta Financial
-    "2883.TW",  # China Development
-    "2880.TW",  # Hua Nan Financial
-    "1216.TW",  # Uni-President
-    "2887.TW",  # Taishin Financial
-    "2890.TW",  # Sinopac Financial
-    "2207.TW",  # Hotai Motor
-    "3045.TW",  # Taiwan Mobile
-    "4904.TW",  # Far EasTone
-    "2357.TW",  # ASUS
-    "2382.TW",  # Quanta Computer
-    "2379.TW",  # Realtek
-    "2395.TW",  # Advantech
-    "2345.TW",  # Accton Technology
-    "3008.TW",  # Largan Precision
-    "2327.TW",  # Yageo
-    "3034.TW",  # Novatek Microelectronics
-    "2376.TW",  # Gigabyte Technology
-    "2408.TW",  # Nanya Technology
-    "6505.TW",  # Formosa Petrochemical
-    "1402.TW",  # Far Eastern New Century
-    "2301.TW",  # Lite-On Technology
-    "2474.TW",  # Catcher Technology
-    "4938.TW",  # Pegatron
-    "2353.TW",  # Acer
-    "2324.TW",  # Compal Electronics
-    "2347.TW",  # Synnex Technology
-    "1101.TW",  # Taiwan Cement
-    "2105.TW",  # Cheng Shin Rubber
-    "9910.TW",  # Feng Tay Enterprises
-    "2609.TW",  # Yang Ming Marine
+    "2330.TW",  # 台積電   Taiwan Semiconductor (TSMC)
+    "2317.TW",  # 鴻海     Hon Hai / Foxconn
+    "2454.TW",  # 聯發科   MediaTek
+    "2308.TW",  # 台達電   Delta Electronics
+    "2882.TW",  # 國泰金   Cathay Financial
+    "2881.TW",  # 富邦金   Fubon Financial
+    "2303.TW",  # 聯電     UMC
+    "2891.TW",  # 中信金   CTBC Financial
+    "2886.TW",  # 兆豐金   Mega Financial
+    "2412.TW",  # 中華電   Chunghwa Telecom
+    "2884.TW",  # 玉山金   E.Sun Financial
+    "3711.TW",  # 日月光投控 ASE Technology
+    "2892.TW",  # 第一金   First Financial
+    "2880.TW",  # 華南金   Hua Nan Financial
+    "1301.TW",  # 台塑     Formosa Plastics
+    "1303.TW",  # 南亞     Nan Ya Plastics
+    "2885.TW",  # 元大金   Yuanta Financial
+    "1326.TW",  # 台化     Formosa Chemicals
+    "2002.TW",  # 中鋼     China Steel
+    "2883.TW",  # 開發金   China Development Financial
+    "5880.TW",  # 合庫金   Taiwan Cooperative Financial
+    "2382.TW",  # 廣達     Quanta Computer
+    "2887.TW",  # 台新金   Taishin Financial
+    "6505.TW",  # 台塑化   Formosa Petrochemical
+    "2379.TW",  # 瑞昱     Realtek
+    "3034.TW",  # 聯詠     Novatek Microelectronics
+    "2357.TW",  # 華碩     ASUS
+    "1216.TW",  # 統一     Uni-President Enterprises
+    "2327.TW",  # 國巨     Yageo
+    "2395.TW",  # 研華     Advantech
+    "2603.TW",  # 長榮     Evergreen Marine
+    "3008.TW",  # 大立光   Largan Precision
+    "2207.TW",  # 和泰車   Hotai Motor
+    "2301.TW",  # 光寶科   Lite-On Technology
+    "1402.TW",  # 遠東新   Far Eastern New Century
+    "2345.TW",  # 智邦     Accton Technology
+    "2890.TW",  # 永豐金   Sinopac Financial
+    "3045.TW",  # 台灣大   Taiwan Mobile
+    "2388.TW",  # 威盛     VIA Technologies
+    "2408.TW",  # 南亞科   Nanya Technology          ← 新增 2024/12
+    "2360.TW",  # 致茂     Chroma ATE                ← 新增 2024/12
+    "3653.TW",  # 健策     Giga Solution Technology  ← 新增 2024/12
+    "3665.TW",  # 貿聯-KY  Bizlink Holding           ← 新增 2024/12
+    "2376.TW",  # 技嘉     Gigabyte Technology
+    "2474.TW",  # 可成     Catcher Technology
+    "2615.TW",  # 萬海     Wan Hai Lines
+    "2352.TW",  # 佳世達   Qisda
+    "4904.TW",  # 遠傳     Far EasTone
+    "1476.TW",  # 儒鴻     Eclat Textile
+    "2353.TW",  # 宏碁     Acer
 ]
 
 
-def get_stock_data(ticker: str, period: str = "1y") -> dict | None:
-    """Fetch stock data and calculate 200MA."""
-    try:
-        stock = yf.Ticker(ticker)
-        hist = stock.history(period="1y")
+def get_twse_history(stock_id: str) -> pd.Series | None:
+    """
+    Fetch daily close prices from TWSE official API.
+    More accurate than yfinance for TW stocks — matches Goodinfo / Wantgoo.
+    Fetches the past ~14 months (two API calls) to cover 240 trading days.
+    """
+    import time
+    from datetime import date
 
-        if hist.empty or len(hist) < 50:
-            return None
+    closes: dict[str, float] = {}
+    today = date.today()
 
-        current_price = hist["Close"].iloc[-1]
-        ma200 = hist["Close"].rolling(window=200).mean().iloc[-1]
+    # Pull data month-by-month going back ~15 months
+    for months_back in range(15, -1, -1):
+        year = today.year
+        month = today.month - months_back
+        while month <= 0:
+            month += 12
+            year -= 1
 
-        # If we don't have 200 days, use what we have (e.g. 252 trading days ~ 1 year)
-        if pd.isna(ma200):
-            ma200 = hist["Close"].mean()
-
-        diff = current_price - ma200
-        diff_pct = (diff / ma200) * 100
-
-        # Get company name
-        info = stock.fast_info
+        date_str = f"{year}{month:02d}01"
+        url = (
+            f"https://www.twse.com.tw/exchangeReport/STOCK_DAY"
+            f"?response=json&date={date_str}&stockNo={stock_id}"
+        )
         try:
-            name = stock.info.get("shortName", ticker)
-        except:
-            name = ticker
+            import requests as _req
+            import urllib3
+
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            resp = _req.get(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Referer": "https://www.twse.com.tw/",
+                    "Accept": "application/json, text/plain, */*",
+                },
+                timeout=10,
+                verify=False,
+            )
+            data = resp.json()
+            if data.get("stat") == "OK":
+                for row in data.get("data", []):
+                    date_key = row[0].strip()
+                    price_str = row[6].replace(",", "").strip()
+                    try:
+                        closes[date_key] = float(price_str)
+                    except ValueError:
+                        pass
+            time.sleep(0.25)
+        except Exception:
+            pass
+
+    if len(closes) < 50:
+        return None
+
+    series = pd.Series(closes).sort_index()
+    return series
+
+
+def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
+    """Fetch stock history and compute moving average.
+
+    For TW stocks (.TW): uses TWSE official API (matches Goodinfo/Wantgoo exactly).
+    For US stocks: uses yfinance with auto_adjust=False (raw close price).
+    """
+    try:
+        is_tw = ticker.endswith(".TW")
+
+        if is_tw:
+            stock_id = ticker.replace(".TW", "")
+            close = get_twse_history(stock_id)
+            if close is None or len(close) < 50:
+                # Fallback to yfinance if TWSE API fails
+                stock = yf.Ticker(ticker)
+                hist = stock.history(period="2y", auto_adjust=False)
+                if hist.empty:
+                    return None
+                close = hist["Close"]
+            current_price = close.iloc[-1]
+        else:
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="2y", auto_adjust=False)
+            if hist.empty or len(hist) < 50:
+                return None
+            close = hist["Close"]
+            current_price = close.iloc[-1]
+
+        ma_val = close.rolling(window=ma_window).mean().iloc[-1]
+
+        # Fallback: if not enough history, use available mean
+        if pd.isna(ma_val):
+            ma_val = close.mean()
+
+        diff = current_price - ma_val
+        diff_pct = (diff / ma_val) * 100
+
+        name = ticker
+        try:
+            yf_stock = yf.Ticker(ticker)
+            name = yf_stock.info.get("shortName", ticker)
+        except Exception:
+            pass
 
         return {
             "ticker": ticker,
             "name": name,
             "price": current_price,
-            "ma200": ma200,
+            "ma": ma_val,
+            "ma_window": ma_window,
             "diff": diff,
             "diff_pct": diff_pct,
-            "below_ma200": current_price < ma200,
+            "below_ma": current_price < ma_val,
         }
     except Exception:
         return None
 
 
-def fetch_all(tickers: list[str], label: str) -> list[dict]:
+def fetch_all(tickers: list[str], label: str, ma_window: int) -> list[dict]:
     results = []
     total = len(tickers)
 
-    with console.status(f"[cyan]Fetching {label} data...[/cyan]") as status:
+    with console.status("") as status:
         for i, ticker in enumerate(tickers, 1):
-            status.update(f"[cyan]Fetching {label}: {ticker} ({i}/{total})[/cyan]")
-            data = get_stock_data(ticker)
+            status.update(
+                f"[cyan]Fetching {label} ({ma_window}MA): "
+                f"[bold]{ticker}[/bold] ({i}/{total})[/cyan]"
+            )
+            data = get_stock_data(ticker, ma_window=ma_window)
             if data:
                 results.append(data)
 
     return results
 
 
-def build_table(results: list[dict], title: str, currency: str = "USD") -> Table:
-    below = [r for r in results if r["below_ma200"]]
-    below.sort(key=lambda x: x["diff_pct"])  # worst first
+def build_table(
+    results: list[dict],
+    title: str,
+    currency: str = "USD",
+    ma_window: int = 200,
+) -> Table:
+    below = [r for r in results if r["below_ma"]]
+    below.sort(key=lambda x: x["diff_pct"])  # worst performers first
+
+    ma_label = f"{ma_window}MA"
 
     table = Table(
-        title=f"[bold red]📉 {title}[/bold red]\n[dim]{len(below)} / {len(results)} stocks below 200MA[/dim]",
+        title=(
+            f"[bold red]📉 {title}[/bold red]\n"
+            f"[dim]{len(below)} / {len(results)} stocks below {ma_label}[/dim]"
+        ),
         box=box.ROUNDED,
         show_header=True,
         header_style="bold white on dark_blue",
@@ -251,16 +347,21 @@ def build_table(results: list[dict], title: str, currency: str = "USD") -> Table
     table.add_column("Ticker", style="cyan bold", width=12)
     table.add_column("Company", style="white", width=28)
     table.add_column(f"Price ({currency})", justify="right", style="yellow", width=14)
-    table.add_column(f"200MA ({currency})", justify="right", style="blue", width=14)
+    table.add_column(
+        f"{ma_label} ({currency})", justify="right", style="blue", width=14
+    )
     table.add_column(f"Diff ({currency})", justify="right", width=14)
     table.add_column("Diff %", justify="right", width=10)
 
     for r in below:
-        diff_str = f"[red]{r['diff']:+.2f}[/red]"
-        pct_str = f"[red]{r['diff_pct']:+.2f}%[/red]"
-        price_str = f"{r['price']:.2f}"
-        ma_str = f"{r['ma200']:.2f}"
-        table.add_row(r["ticker"], r["name"][:28], price_str, ma_str, diff_str, pct_str)
+        table.add_row(
+            r["ticker"],
+            r["name"][:28],
+            f"{r['price']:.2f}",
+            f"{r['ma']:.2f}",
+            f"[red]{r['diff']:+.2f}[/red]",
+            f"[red]{r['diff_pct']:+.2f}%[/red]",
+        )
 
     return table
 
@@ -268,8 +369,10 @@ def build_table(results: list[dict], title: str, currency: str = "USD") -> Table
 def main():
     console.print(
         Panel.fit(
-            "[bold cyan]📊 Stock Price vs 200-Day Moving Average[/bold cyan]\n"
-            "[dim]S&P 100 & Taiwan 50 — Stocks trading BELOW 200MA[/dim]",
+            "[bold cyan]📊 Stock Price vs Moving Average Scanner[/bold cyan]\n"
+            "[yellow]S&P 100[/yellow] → [bold]200MA[/bold]   ·   "
+            "[yellow]台灣50[/yellow] → [bold]240MA[/bold]\n"
+            "[dim]Displaying only stocks trading BELOW their respective MA[/dim]",
             border_style="cyan",
         )
     )
@@ -277,32 +380,37 @@ def main():
         f"[dim]Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n"
     )
 
-    # Fetch data
-    sp100_data = fetch_all(SP100_TICKERS, "S&P 100")
-    tw50_data = fetch_all(TW50_TICKERS, "Taiwan 50")
-
-    # Display S&P 100
+    # ── S&P 100 · 200MA ──────────────────────────────────────────────────────
+    console.rule("[yellow]S&P 100  —  200-Day Moving Average[/yellow]")
+    sp100_data = fetch_all(SP100_TICKERS, "S&P 100", ma_window=200)
     console.print()
-    sp100_table = build_table(sp100_data, "S&P 100 — Below 200MA", currency="USD")
-    console.print(sp100_table)
+    console.print(
+        build_table(sp100_data, "S&P 100 — Below 200MA", currency="USD", ma_window=200)
+    )
 
-    # Display Taiwan 50
+    # ── 台灣50 · 240MA ───────────────────────────────────────────────────
     console.print()
-    tw50_table = build_table(tw50_data, "Taiwan 50 — Below 200MA", currency="TWD")
-    console.print(tw50_table)
+    console.rule("[yellow]台灣50  —  240-Day Moving Average[/yellow]")
+    tw50_data = fetch_all(TW50_TICKERS, "台灣50", ma_window=240)
+    console.print()
+    console.print(
+        build_table(tw50_data, "台灣50 — Below 240MA", currency="TWD", ma_window=240)
+    )
 
-    # Summary
-    sp100_below = sum(1 for r in sp100_data if r["below_ma200"])
-    tw50_below = sum(1 for r in tw50_data if r["below_ma200"])
+    # ── Summary ──────────────────────────────────────────────────────────────
+    sp100_below = sum(1 for r in sp100_data if r["below_ma"])
+    tw50_below = sum(1 for r in tw50_data if r["below_ma"])
+    sp100_total = len(sp100_data)
+    tw50_total = len(tw50_data)
 
     console.print()
     console.print(
         Panel(
             f"[bold]Summary[/bold]\n\n"
-            f"[cyan]S&P 100:[/cyan]  {sp100_below:>3} / {len(sp100_data)} stocks below 200MA  "
-            f"([red]{sp100_below / len(sp100_data) * 100:.1f}%[/red])\n"
-            f"[cyan]Taiwan 50:[/cyan] {tw50_below:>3} / {len(tw50_data)} stocks below 200MA  "
-            f"([red]{tw50_below / len(tw50_data) * 100:.1f}%[/red])",
+            f"[cyan]S&P 100    (200MA):[/cyan]  {sp100_below:>3} / {sp100_total:<4} "
+            f"below 200MA  [red]{sp100_below / max(sp100_total, 1) * 100:.1f}%[/red]\n"
+            f"[cyan]台灣50 (240MA):[/cyan]  {tw50_below:>3} / {tw50_total:<4} "
+            f"below 240MA  [red]{tw50_below / max(tw50_total, 1) * 100:.1f}%[/red]",
             border_style="green",
             title="[bold green]📋 Final Summary[/bold green]",
         )
