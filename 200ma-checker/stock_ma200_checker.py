@@ -1,5 +1,7 @@
+import sqlite3
 import warnings
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
@@ -11,6 +13,66 @@ from rich.table import Table
 warnings.filterwarnings("ignore")
 
 console = Console()
+
+# ── SQLite Cache 設定 ─────────────────────────────────────────────────────────
+# cache.db 放在與 .py 同一目錄下
+DB_PATH = Path(__file__).parent / "cache.db"
+
+
+def _get_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS stock_name (
+            stock_id TEXT PRIMARY KEY,
+            name     TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS closes (
+            stock_id  TEXT    NOT NULL,
+            date_key  TEXT    NOT NULL,
+            close     REAL    NOT NULL,
+            PRIMARY KEY (stock_id, date_key)
+        )
+    """)
+    conn.commit()
+    return conn
+
+
+def load_cache(stock_id: str) -> tuple[dict[str, float], str]:
+    """從 SQLite cache 讀取收盤價資料，回傳 (closes dict, name)。"""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT name FROM stock_name WHERE stock_id = ?", (stock_id,)
+            ).fetchone()
+            name = row[0] if row else stock_id
+
+            rows = conn.execute(
+                "SELECT date_key, close FROM closes WHERE stock_id = ?", (stock_id,)
+            ).fetchall()
+            closes = {r[0]: r[1] for r in rows}
+            return closes, name
+    except Exception:
+        return {}, stock_id
+
+
+def save_cache(stock_id: str, closes: dict[str, float], name: str) -> None:
+    """將收盤價資料寫入 SQLite cache（upsert）。"""
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO stock_name (stock_id, name) VALUES (?, ?)",
+                (stock_id, name),
+            )
+            conn.executemany(
+                "INSERT OR REPLACE INTO closes (stock_id, date_key, close) VALUES (?, ?, ?)",
+                [(stock_id, dk, v) for dk, v in closes.items()],
+            )
+            conn.commit()
+    except Exception:
+        pass
+
 
 # ── S&P 100 constituents (OEX) — 200MA ───────────────────────────────────────
 SP100_TICKERS = [
@@ -193,32 +255,63 @@ TWSE_HEADERS = {
 }
 
 
+def _twse_date_to_ym(twse_date: str) -> tuple[int, int]:
+    """將民國日期字串 '113/12/02' 轉換為西元 (year, month)。"""
+    parts = twse_date.split("/")
+    year = int(parts[0]) + 1911
+    month = int(parts[1])
+    return year, month
+
+
 def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
     """
-    Fetch daily close prices from TWSE official API.
-    Returns (Series of close prices, Chinese company name).
-    Matches Goodinfo / Wantgoo MA values exactly.
+    從 TWSE 取得收盤價，並使用 local cache 加速。
+    - 首次執行：下載全部 15 個月資料並存入 cache
+    - 之後執行：只下載 cache 最後一筆之後的月份，合併後更新 cache
+    回傳 (Series of close prices, Chinese company name)
     """
     import time
-    from datetime import date
 
     import requests as _req
     import urllib3
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    closes: dict[str, float] = {}
-    tw_name: str = stock_id
+    # 1. 讀取 cache
+    closes, tw_name = load_cache(stock_id)
     today = date.today()
 
-    for months_back in range(15, -1, -1):
-        year = today.year
-        month = today.month - months_back
-        while month <= 0:
-            month += 12
-            year -= 1
+    # 2. 決定要補抓哪些月份
+    if closes:
+        # 找出 cache 最後一筆的年月，從該月開始重新抓（補足當月可能的新交易日）
+        last_twse_date = max(closes.keys())
+        last_year, last_month = _twse_date_to_ym(last_twse_date)
+        # 計算需要補抓的月份：從 last_month 到現在
+        fetch_months: list[tuple[int, int]] = []
+        y, m = last_year, last_month
+        while (y, m) <= (today.year, today.month):
+            fetch_months.append((y, m))
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+        fetched_new = len(fetch_months)
+    else:
+        # Cache 不存在，下載全部 15 個月
+        fetch_months = []
+        for months_back in range(15, -1, -1):
+            y = today.year
+            m = today.month - months_back
+            while m <= 0:
+                m += 12
+                y -= 1
+            fetch_months.append((y, m))
+        fetched_new = len(fetch_months)
 
-        date_str = f"{year}{month:02d}01"
+    # 3. 逐月抓取
+    newly_fetched = 0
+    for y, m in fetch_months:
+        date_str = f"{y}{m:02d}01"
         url = (
             f"https://www.twse.com.tw/exchangeReport/STOCK_DAY"
             f"?response=json&date={date_str}&stockNo={stock_id}"
@@ -227,7 +320,7 @@ def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
             resp = _req.get(url, headers=TWSE_HEADERS, timeout=10, verify=False)
             data = resp.json()
             if data.get("stat") == "OK":
-                # 從 title 解析中文名稱，格式: "113年12月 2376 技嘉             各日成交資訊"
+                # 解析中文名稱
                 if tw_name == stock_id and "title" in data:
                     parts = data["title"].split()
                     try:
@@ -247,6 +340,7 @@ def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
                     price_str = row[6].replace(",", "").strip()
                     try:
                         closes[date_key] = float(price_str)
+                        newly_fetched += 1
                     except ValueError:
                         pass
             time.sleep(0.25)
@@ -256,15 +350,68 @@ def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
     if len(closes) < 50:
         return None, tw_name
 
+    # 4. 更新 cache（只在有新資料時寫入）
+    if newly_fetched > 0:
+        save_cache(stock_id, closes, tw_name)
+
     series = pd.Series(closes).sort_index()
     return series, tw_name
+
+
+def get_yf_history(ticker: str) -> tuple[pd.Series | None, str]:
+    """
+    從 yfinance 取得收盤價，並使用 SQLite cache 加速。
+    - 首次執行：下載 2 年資料存入 cache
+    - 之後執行：只下載 cache 最後一筆日期之後的資料，合併後更新 cache
+    回傳 (Series of close prices, name)
+    """
+    # 1. 讀取 cache（yfinance 用 ISO 日期格式 YYYY-MM-DD 作為 date_key）
+    closes, name = load_cache(ticker)
+
+    if closes:
+        last_date = max(closes.keys())  # e.g. "2025-03-07"
+        # 只補抓 last_date 之後的資料
+        stock = yf.Ticker(ticker)
+        hist = stock.history(start=last_date, auto_adjust=False)
+        newly_fetched = 0
+        if not hist.empty:
+            # 取名稱
+            if name == ticker:
+                try:
+                    name = stock.info.get("shortName", ticker)
+                except Exception:
+                    pass
+            for dt, row in hist.iterrows():
+                dk = str(dt.date())
+                if dk not in closes:
+                    closes[dk] = float(row["Close"])
+                    newly_fetched += 1
+            if newly_fetched > 0:
+                save_cache(ticker, closes, name)
+    else:
+        # 首次：下載 2 年完整資料
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period="2y", auto_adjust=False)
+        if hist.empty or len(hist) < 50:
+            return None, ticker
+        try:
+            name = stock.info.get("shortName", ticker)
+        except Exception:
+            name = ticker
+        closes = {str(dt.date()): float(row["Close"]) for dt, row in hist.iterrows()}
+        save_cache(ticker, closes, name)
+
+    if len(closes) < 50:
+        return None, name
+
+    series = pd.Series(closes).sort_index()
+    return series, name
 
 
 def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
     """Fetch stock history and compute moving average.
 
-    For TW stocks (.TW): uses TWSE official API (matches Goodinfo/Wantgoo exactly).
-    For US stocks: uses yfinance with auto_adjust=False (raw close price).
+    Both TW and US stocks use SQLite cache; only missing data is fetched.
     """
     try:
         is_tw = ticker.endswith(".TW")
@@ -277,17 +424,13 @@ def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
                 return None
             current_price = close.iloc[-1]
         else:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(period="2y", auto_adjust=False)
-            if hist.empty or len(hist) < 50:
+            close, name = get_yf_history(ticker)
+            if close is None or len(close) < 50:
+                console.print(
+                    f"[yellow]⚠ 跳過 {ticker}：無法從 yfinance 取得資料[/yellow]"
+                )
                 return None
-            close = hist["Close"]
             current_price = close.iloc[-1]
-            name = ticker
-            try:
-                name = stock.info.get("shortName", ticker)
-            except Exception:
-                pass
 
         ma_val = close.rolling(window=ma_window).mean().iloc[-1]
 
@@ -385,8 +528,9 @@ def main():
         )
     )
     console.print(
-        f"[dim]Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n"
+        f"[dim]Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/dim]"
     )
+    console.print(f"[dim]Cache:    {DB_PATH}[/dim]\n")
 
     # ── S&P 100 · 200MA ──────────────────────────────────────────────────────
     console.rule("[yellow]S&P 100  —  200-Day Moving Average[/yellow]")
