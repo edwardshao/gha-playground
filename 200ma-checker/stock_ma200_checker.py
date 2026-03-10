@@ -186,19 +186,31 @@ TW50_TICKERS = [
 ]
 
 
-def get_twse_history(stock_id: str) -> pd.Series | None:
+TWSE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://www.twse.com.tw/",
+    "Accept": "application/json, text/plain, */*",
+}
+
+
+def get_twse_history(stock_id: str) -> tuple[pd.Series | None, str]:
     """
     Fetch daily close prices from TWSE official API.
-    More accurate than yfinance for TW stocks — matches Goodinfo / Wantgoo.
-    Fetches the past ~14 months (two API calls) to cover 240 trading days.
+    Returns (Series of close prices, Chinese company name).
+    Matches Goodinfo / Wantgoo MA values exactly.
     """
     import time
     from datetime import date
 
+    import requests as _req
+    import urllib3
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     closes: dict[str, float] = {}
+    tw_name: str = stock_id
     today = date.today()
 
-    # Pull data month-by-month going back ~15 months
     for months_back in range(15, -1, -1):
         year = today.year
         month = today.month - months_back
@@ -212,22 +224,24 @@ def get_twse_history(stock_id: str) -> pd.Series | None:
             f"?response=json&date={date_str}&stockNo={stock_id}"
         )
         try:
-            import requests as _req
-            import urllib3
-
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            resp = _req.get(
-                url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": "https://www.twse.com.tw/",
-                    "Accept": "application/json, text/plain, */*",
-                },
-                timeout=10,
-                verify=False,
-            )
+            resp = _req.get(url, headers=TWSE_HEADERS, timeout=10, verify=False)
             data = resp.json()
             if data.get("stat") == "OK":
+                # 從 title 解析中文名稱，格式: "113年12月 2376 技嘉             各日成交資訊"
+                if tw_name == stock_id and "title" in data:
+                    parts = data["title"].split()
+                    try:
+                        code_idx = next(i for i, p in enumerate(parts) if p == stock_id)
+                        name_parts = []
+                        for p in parts[code_idx + 1 :]:
+                            if "各日" in p or "月" in p:
+                                break
+                            name_parts.append(p)
+                        if name_parts:
+                            tw_name = "".join(name_parts)
+                    except StopIteration:
+                        pass
+
                 for row in data.get("data", []):
                     date_key = row[0].strip()
                     price_str = row[6].replace(",", "").strip()
@@ -240,10 +254,10 @@ def get_twse_history(stock_id: str) -> pd.Series | None:
             pass
 
     if len(closes) < 50:
-        return None
+        return None, tw_name
 
     series = pd.Series(closes).sort_index()
-    return series
+    return series, tw_name
 
 
 def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
@@ -257,14 +271,10 @@ def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
 
         if is_tw:
             stock_id = ticker.replace(".TW", "")
-            close = get_twse_history(stock_id)
+            close, name = get_twse_history(stock_id)
             if close is None or len(close) < 50:
-                # Fallback to yfinance if TWSE API fails
-                stock = yf.Ticker(ticker)
-                hist = stock.history(period="2y", auto_adjust=False)
-                if hist.empty:
-                    return None
-                close = hist["Close"]
+                console.print(f"[yellow]⚠ 跳過 {ticker}：無法從 TWSE 取得資料[/yellow]")
+                return None
             current_price = close.iloc[-1]
         else:
             stock = yf.Ticker(ticker)
@@ -273,6 +283,11 @@ def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
                 return None
             close = hist["Close"]
             current_price = close.iloc[-1]
+            name = ticker
+            try:
+                name = stock.info.get("shortName", ticker)
+            except Exception:
+                pass
 
         ma_val = close.rolling(window=ma_window).mean().iloc[-1]
 
@@ -282,13 +297,6 @@ def get_stock_data(ticker: str, ma_window: int = 200) -> dict | None:
 
         diff = current_price - ma_val
         diff_pct = (diff / ma_val) * 100
-
-        name = ticker
-        try:
-            yf_stock = yf.Ticker(ticker)
-            name = yf_stock.info.get("shortName", ticker)
-        except Exception:
-            pass
 
         return {
             "ticker": ticker,
