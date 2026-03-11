@@ -465,9 +465,9 @@ def main():
     console.print(
         Panel(
             f"[bold]Summary[/bold]\n\n"
-            f"[cyan]S&P 100    (200MA):[/cyan]  {sp100_below:>3} / {sp100_total:<4} "
+            f"[cyan]S&P 100\t(200MA):[/cyan]  {sp100_below:>3} / {sp100_total:<4} "
             f"below 200MA  [red]{sp100_below / max(sp100_total, 1) * 100:.1f}%[/red]\n"
-            f"[cyan]台灣50 (240MA):[/cyan]  {tw50_below:>3} / {tw50_total:<4} "
+            f"[cyan]台灣50\t(240MA):[/cyan]  {tw50_below:>3} / {tw50_total:<4} "
             f"below 240MA  [red]{tw50_below / max(tw50_total, 1) * 100:.1f}%[/red]",
             border_style="green",
             title="[bold green]📋 Final Summary[/bold green]",
