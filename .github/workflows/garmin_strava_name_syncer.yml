@@ -32,7 +32,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: 'pyproject.toml'
+          python-version-file: 'garmin_strava_name_syncer/pyproject.toml'
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
