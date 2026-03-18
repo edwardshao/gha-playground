@@ -1,0 +1,10 @@
+[project]
+name = "garmin-strava-name-syncer"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.14"
+
+dependencies = ["garminconnect==0.2.40", "stravalib==2.4"]
+
+[tool.uv]
+required-version = "~=0.10"
