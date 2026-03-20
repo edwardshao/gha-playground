@@ -374,11 +374,13 @@ if __name__ == "__main__":
             else:
                 if not success:
                     print("❌ Failed to get Strava activities.")
+                    exit(1)
                 else:
                     print("ℹ️ No Strava activities found to sync.")
         else:
             if not success:
                 print("❌ Failed to get Garmin activities.")
+                exit(1)
             else:
                 print("ℹ️ No Garmin activities found to sync.")
     except Exception as e:
