@@ -65,6 +65,7 @@ jobs:
           echo "Syncing '${{matrix.user}}' activity to Strava"
           uv run name_syncer.py ${{matrix.run_cmd_args}}
       - name: Stop mitmproxy
+        if: always()
         run: |
           ./mitmproxy_ctl.sh stop
       - name: Show mitmproxy logs

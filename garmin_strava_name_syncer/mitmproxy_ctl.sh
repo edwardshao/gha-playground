@@ -17,6 +17,7 @@ if [ "$1" = "start" ]; then
         exit 1
     else
         echo "mitmproxy is ready"
+        cp ~/.mitmproxy/mitmproxy-ca-cert.pem .
     fi
 elif [ "$1" = "stop" ]; then
     kill $(cat mitmproxy.pid)
