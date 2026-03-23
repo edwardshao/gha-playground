@@ -1,35 +1,33 @@
 #!/usr/bin/env python3
 
-import base64
-import os
-import json
 import argparse
-from garminconnect import Garmin
-from datetime import datetime, timezone, timedelta
-from getpass import getpass
+import json
+import os
+from datetime import datetime, timedelta, timezone
 
-from stravalib import Client
-
-import requests
-from garth.exc import GarthHTTPError
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
     GarminConnectConnectionError,
     GarminConnectTooManyRequestsError,
 )
+from garth.exc import GarthHTTPError
+from stravalib import Client
 
 GARMIN_TOKENS_BASE64 = os.getenv("GARMIN_TOKENS_BASE64")
-GARMIN_ACTIVITIES_OUTPUT_PATH="garmin_activities.json"
+GARMIN_ACTIVITIES_OUTPUT_PATH = "garmin_activities.json"
 
-STRAVA_TOKEN_PATH="strava_token.json"
-STRAVA_ACTIVITIES_OUTPUT_PATH="strava_activities.json"
+STRAVA_TOKEN_PATH = "strava_token.json"
+STRAVA_ACTIVITIES_OUTPUT_PATH = "strava_activities.json"
+
 
 def init_garmin_api():
     """Initialize Garmin API with your credentials."""
     try:
         # Using Oauth1 and Oauth2 tokens from base64 encoded string
-        print("ℹ️ Trying to login to Garmin Connect using token data from GARMIN_TOKENS_BASE64 env...")
+        print(
+            "ℹ️ Trying to login to Garmin Connect using token data from GARMIN_TOKENS_BASE64 env..."
+        )
 
         garmin = Garmin()
         garmin.login(GARMIN_TOKENS_BASE64)
@@ -140,11 +138,14 @@ def garmin_safe_api_call(api_method, *args, **kwargs):
 def _sort_and_save_activities(activity_map, output_path):
     """Sorts activities by timestamp and saves them to a JSON file."""
     # sort hashmap by keys
-    sorted_items = sorted(activity_map.items(), key=lambda item: datetime.strptime(item[0], '%Y-%m-%d %H:%M:%S'))
+    sorted_items = sorted(
+        activity_map.items(),
+        key=lambda item: datetime.strptime(item[0], "%Y-%m-%d %H:%M:%S"),
+    )
     sorted_data = dict(sorted_items)
 
     # Save hashmap to file
-    with open(output_path, "w", encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(sorted_data, f, ensure_ascii=False, indent=4)
 
     print(f"\nActivities saved to {output_path}")
@@ -156,9 +157,9 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
     # convert datetime to UTC+8
     after_datetime_utc8 = after_datetime_utc.astimezone(timezone(timedelta(hours=8)))
     before_datetime_utc8 = before_datetime_utc.astimezone(timezone(timedelta(hours=8)))
-    
-    after_date = after_datetime_utc8.strftime('%Y-%m-%d')
-    before_date = before_datetime_utc8.strftime('%Y-%m-%d')
+
+    after_date = after_datetime_utc8.strftime("%Y-%m-%d")
+    before_date = before_datetime_utc8.strftime("%Y-%m-%d")
 
     print(f"=== Getting Garmin activities from {after_date} to {before_date} (UTC+8)")
 
@@ -166,9 +167,7 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
     activity_map = {}
 
     success, activities, error_msg = garmin_safe_api_call(
-        garmin_api.get_activities_by_date,
-        after_date,
-        before_date
+        garmin_api.get_activities_by_date, after_date, before_date
     )
 
     if not success:
@@ -187,10 +186,10 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
             # Add to hashmap with formatted_start_date as key
             activity_map[activity_start_time_gmt] = {
                 "id": activity_id,
-                "name": activity_name
+                "name": activity_name,
             }
 
-            print(f"Activity:")
+            print("Activity:")
             print(f"\tid: {activity_id}")
             print(f"\tname: {activity_name}")
             print(f"\tstart_date: {activity_start_time_gmt}")
@@ -205,41 +204,53 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
     after_datetime_utc8 = after_datetime_utc.astimezone(timezone(timedelta(hours=8)))
     before_datetime_utc8 = before_datetime_utc.astimezone(timezone(timedelta(hours=8)))
 
-    print(f"=== Getting Strava activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()} (UTC+8)")
+    print(
+        f"=== Getting Strava activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()} (UTC+8)"
+    )
 
     # Initialize hashmap
     activity_map = {}
 
     # Remove time part for after and before datetime
-    after_datetime_utc8_no_time = after_datetime_utc8.replace(hour=0, minute=0, second=0, microsecond=0)
-    before_datetime_utc8_no_time = before_datetime_utc8.replace(hour=0, minute=0, second=0, microsecond=0)
+    after_datetime_utc8_no_time = after_datetime_utc8.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    before_datetime_utc8_no_time = before_datetime_utc8.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
 
     success = True
     try:
         # Get activities in the date range
-        activities = strava_client.get_activities(after=after_datetime_utc8_no_time, before=before_datetime_utc8_no_time)
+        activities = strava_client.get_activities(
+            after=after_datetime_utc8_no_time, before=before_datetime_utc8_no_time
+        )
 
         if not activities:
-            print(f"ℹ️ Can not find activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}.")
+            print(
+                f"ℹ️ Can not find activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}."
+            )
         else:
             print(f"✅ Retrieved {len(list(activities))} activities from Strava.")
 
             for i, activity in enumerate(activities):
                 # Format start_date
-                formatted_start_date = activity.start_date.strftime('%Y-%m-%d %H:%M:%S')
+                formatted_start_date = activity.start_date.strftime("%Y-%m-%d %H:%M:%S")
 
                 # Add to hashmap with formatted_start_date as key
                 activity_map[formatted_start_date] = {
                     "id": activity.id,
-                    "name": activity.name
+                    "name": activity.name,
                 }
 
-                print(f"Activity:")
+                print("Activity:")
                 print(f"\tid: {activity.id}")
                 print(f"\tname: {activity.name}")
                 print(f"\tstart_date: {formatted_start_date}")
     except Exception as e:
-        print(f"❌ Failed to get activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}. - {e}")
+        print(
+            f"❌ Failed to get activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}. - {e}"
+        )
         success = False
 
     sorted_data = _sort_and_save_activities(activity_map, STRAVA_ACTIVITIES_OUTPUT_PATH)
@@ -248,16 +259,18 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
 
 
 def strava_update_activity_name(strava_client, activity_id, new_name):
-    print(f"Updating Strava activity ID {activity_id} name to \"{new_name}\"...")
+    print(f'Updating Strava activity ID {activity_id} name to "{new_name}"...')
 
     try:
         strava_client.update_activity(activity_id, name=new_name)
-        print(f"✅ Update Strava activity name to \"{new_name}\" successfully")
+        print(f'✅ Update Strava activity name to "{new_name}" successfully')
     except Exception as e:
         print(f"❌ Fail to update activity name - {e}")
 
 
-def sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava_client, sync_ignore_list):
+def sync_name_from_garmin_to_strava(
+    garmin_activities, strava_activities, strava_client, sync_ignore_list
+):
     print("=== Syncing activity names from Garmin to Strava...")
 
     print(f"Sync ignore list: {sync_ignore_list}")
@@ -265,18 +278,30 @@ def sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava
     for garmin_timestamp, garmin_activity in garmin_activities.items():
         garmin_activity_name = garmin_activity.get("name", "N/A")
 
-        if sync_ignore_list and garmin_activity_name.startswith(tuple(sync_ignore_list)):
-            print(f"ℹ️ Skipping the Garmin activity ({garmin_timestamp}) as its name \"{garmin_activity_name}\" is in the ignore list.")
+        if sync_ignore_list and garmin_activity_name.startswith(
+            tuple(sync_ignore_list)
+        ):
+            print(
+                f'ℹ️ Skipping the Garmin activity ({garmin_timestamp}) as its name "{garmin_activity_name}" is in the ignore list.'
+            )
             continue
 
         if garmin_timestamp in strava_activities:
-            strava_activity_name = strava_activities[garmin_timestamp].get("name", "N/A")
+            strava_activity_name = strava_activities[garmin_timestamp].get(
+                "name", "N/A"
+            )
             if garmin_activity_name != strava_activity_name:
-                print(f"Timestamp: {garmin_timestamp}, Garmin Name: \"{garmin_activity_name}\", Strava Name: \"{strava_activity_name}\" (Names differ)")
+                print(
+                    f'Timestamp: {garmin_timestamp}, Garmin Name: "{garmin_activity_name}", Strava Name: "{strava_activity_name}" (Names differ)'
+                )
 
                 strava_id = strava_activities[garmin_timestamp].get("id")
-                print(f"ℹ️ Update Garmin Name: \"{garmin_activity_name}\" to Strava activity ({strava_id})")
-                strava_update_activity_name(strava_client, strava_id, garmin_activity_name)
+                print(
+                    f'ℹ️ Update Garmin Name: "{garmin_activity_name}" to Strava activity ({strava_id})'
+                )
+                strava_update_activity_name(
+                    strava_client, strava_id, garmin_activity_name
+                )
 
 
 def env_pre_check():
@@ -293,24 +318,26 @@ def env_pre_check():
         print("SILENCE_TOKEN_WARNINGS environment variable is not set.")
         exit(1)
     if not os.path.exists(STRAVA_TOKEN_PATH):
-        print(f"Strava token file \"{STRAVA_TOKEN_PATH}\" does not exist.")
+        print(f'Strava token file "{STRAVA_TOKEN_PATH}" does not exist.')
         exit(1)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Sync Garmin activity names to Strava.")
+    parser = argparse.ArgumentParser(
+        description="Sync Garmin activity names to Strava."
+    )
     parser.add_argument(
         "--sync-ignore-file",
         type=str,
         help="Path to a file containing a list of activity name prefixes to ignore during sync.",
-        default=None
+        default=None,
     )
     args = parser.parse_args()
 
     sync_ignore_list = []
     if args.sync_ignore_file:
         try:
-            with open(args.sync_ignore_file, "r", encoding='utf-8') as f:
+            with open(args.sync_ignore_file, "r", encoding="utf-8") as f:
                 sync_ignore_list = [line.strip() for line in f if line.strip()]
         except FileNotFoundError:
             print(f"❌ Sync ignore file not found: {args.sync_ignore_file}")
@@ -336,20 +363,29 @@ if __name__ == "__main__":
         # Define date range for activities (last 7 days)
         before_datetime_utc = datetime.now(timezone.utc)
         after_datetime_utc = before_datetime_utc - timedelta(days=7)
-        
+
         # Get Garmin activities
-        success, garmin_activities = get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc)
+        success, garmin_activities = get_garmin_activities(
+            garmin_api, after_datetime_utc, before_datetime_utc
+        )
 
         if success and garmin_activities:
             print(f"Found {len(garmin_activities)} activities from Garmin")
 
             # Get Strava activities
-            success, strava_activities = get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc)
+            success, strava_activities = get_strava_activities(
+                strava_client, after_datetime_utc, before_datetime_utc
+            )
 
             if success and strava_activities:
                 print(f"Found {len(strava_activities)} activities from Strava")
                 # Sync activity names from Garmin to Strava
-                sync_name_from_garmin_to_strava(garmin_activities, strava_activities, strava_client, sync_ignore_list)
+                sync_name_from_garmin_to_strava(
+                    garmin_activities,
+                    strava_activities,
+                    strava_client,
+                    sync_ignore_list,
+                )
             else:
                 if not success:
                     print("❌ Failed to get Strava activities.")
