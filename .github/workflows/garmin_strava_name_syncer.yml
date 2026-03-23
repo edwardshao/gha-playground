@@ -46,12 +46,28 @@ jobs:
           STRAVA_TOKEN_BASE64: ${{ secrets[matrix.strava_token_name] }}
         run: |
           echo "${{ env.STRAVA_TOKEN_BASE64 }}" | base64 --decode > strava_token.json
+      - name: Start mitmproxy
+        env:
+          PROXY_SERVER: ${{ vars.PROXY_SERVER }}
+        run: |
+          ./mitmproxy_ctl.sh start
       - name: Run name syncer
         env:
           GARMIN_TOKENS_BASE64: ${{ secrets[matrix.garmin_token_name] }}
           STRAVA_CLIENT_ID: ${{ secrets[matrix.strava_client_id_name] }}
           STRAVA_CLIENT_SECRET: ${{ secrets[matrix.strava_client_secret_name] }}
           SILENCE_TOKEN_WARNINGS: "true"
+          HTTP_PROXY: http://localhost:8080
+          HTTPS_PROXY: http://localhost:8080
+          REQUESTS_CA_BUNDLE: mitmproxy-ca-cert.pem
+          SSL_CERT_FILE: mitmproxy-ca-cert.pem
         run: |
           echo "Syncing '${{matrix.user}}' activity to Strava"
           uv run name_syncer.py ${{matrix.run_cmd_args}}
+      - name: Stop mitmproxy
+        run: |
+          ./mitmproxy_ctl.sh stop
+      - name: Show mitmproxy logs
+        if: always()
+        run: |
+          cat mitmproxy.log
