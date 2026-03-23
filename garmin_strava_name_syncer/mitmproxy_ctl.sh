@@ -18,7 +18,6 @@ if [ "$1" = "start" ]; then
         exit 1
     else
         echo "~/.mitmproxy/mitmproxy-ca-cert.pem is ready"
-        cp ~/.mitmproxy/mitmproxy-ca-cert.pem .
     fi
 
     # wait for mitmproxy to be ready
