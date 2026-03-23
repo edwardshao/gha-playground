@@ -1,0 +1,11 @@
+[project]
+name = "200ma-checker"
+version = "0.1.0"
+description = "S&P 100 & Taiwan 50 200MA Checker"
+requires-python = ">=3.14"
+dependencies = [
+    "yfinance>=1.2.0",
+    "pandas>=3.0.1",
+    "rich>=14.3.3",
+    "requests>=2.32.5",
+]
