@@ -59,9 +59,10 @@ jobs:
           SILENCE_TOKEN_WARNINGS: "true"
           HTTP_PROXY: http://localhost:8080
           HTTPS_PROXY: http://localhost:8080
-          REQUESTS_CA_BUNDLE: ~/.mitmproxy/mitmproxy-ca-cert.pem
-          SSL_CERT_FILE: ~/.mitmproxy/mitmproxy-ca-cert.pem
+          REQUESTS_CA_BUNDLE: mitmproxy-ca-cert.pem
+          SSL_CERT_FILE: mitmproxy-ca-cert.pem
         run: |
+          cp ~/.mitmproxy/mitmproxy-ca-cert.pem .
           echo "Syncing '${{matrix.user}}' activity to Strava"
           uv run name_syncer.py ${{matrix.run_cmd_args}}
       - name: Stop mitmproxy
