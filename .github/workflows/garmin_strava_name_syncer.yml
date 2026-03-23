@@ -48,7 +48,7 @@ jobs:
           echo "${{ env.STRAVA_TOKEN_BASE64 }}" | base64 --decode > strava_token.json
       - name: Start mitmproxy
         env:
-          PROXY_SERVER: ${{ vars.PROXY_SERVER }}
+          PROXY_SERVER: ${{ secrets.PROXY_SERVER }}
         run: |
           ./mitmproxy_ctl.sh start
       - name: Run name syncer
