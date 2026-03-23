@@ -5,7 +5,7 @@ if [ "$1" = "start" ]; then
     echo $! > mitmproxy.pid
     # wait mitmproxy to be ready and maximum 5 seconds
     i=0
-    while [ "$i" -lt 5 ]; do
+    while [ "$i" -lt 10 ]; do
         i=$((i + 1))
         if curl -s http://localhost:8080/ > /dev/null 2>&1; then
             break
