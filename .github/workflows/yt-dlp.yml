@@ -50,9 +50,9 @@ jobs:
         run: |
           if [ "${{ inputs.music_only }}" = "true" ]; then
             echo "Downloading audio only and converting to mp3..."
-            yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 "${{ inputs.dl_url }}"
+            yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 -o "%(title).80s.%(ext)s" "${{ inputs.dl_url }}"
           else
-            yt-dlp "${{ inputs.dl_url }}"
+            yt-dlp -o "%(title).80s.%(ext)s" "${{ inputs.dl_url }}"
           fi
       - name: Update yt-dlp YouTube cookies
         uses: AnimMouse/setup-yt-dlp/cookies/update@v3
