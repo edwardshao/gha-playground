@@ -54,6 +54,18 @@ jobs:
           cp ~/.mitmproxy/mitmproxy-ca-cert.pem .
           echo "Syncing '${{matrix.user}}' activity to Strava"
           uv run name_syncer.py ${{matrix.run_cmd_args}}
+      - name: Update STRAVA_COOKIE in GitHub Secrets
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET_ACCESS_TOKEN }}
+        run: |
+          if [ -f ".strava_updated_cookie" ]; then
+            gh secret set ${{matrix.strava_cookie_name}} --repo "${{ github.repository }}" < .strava_updated_cookie
+            rm -f .strava_updated_cookie
+            echo "✅ Successfully refreshed and updated STRAVA_COOKIE secret!"
+          else
+            echo "ℹ️ No updated cookie file found, skipping secret update."
+          fi
       - name: Stop mitmproxy
         if: always()
         run: |

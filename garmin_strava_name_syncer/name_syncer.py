@@ -20,10 +20,11 @@ GARMIN_ACTIVITIES_OUTPUT_PATH = "garmin_activities.json"
 
 STRAVA_COOKIE = os.getenv("STRAVA_COOKIE")
 STRAVA_ACTIVITIES_OUTPUT_PATH = "strava_activities.json"
+STRAVA_UPDATED_COOKIE_PATH = ".strava_updated_cookie"
 
 
 class StravaWebClient:
-    """Lightweight client using Strava internal Web API instead of official API."""
+    """Lightweight client using Strava's internal Web API (supports automatic cookie renewal)."""
 
     BASE_URL = "https://www.strava.com"
 
@@ -36,19 +37,42 @@ class StravaWebClient:
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/130.0.0.0 Safari/537.36"
                 ),
-                "Cookie": cookie_str,
             }
         )
+        # Parse the cookie string into the session CookieJar so requests can handle Set-Cookie updates automatically
+        self._load_cookie_str(cookie_str)
         self.csrf_token = self._fetch_csrf_token()
 
+    def _load_cookie_str(self, cookie_str: str) -> None:
+        """Load a 'k1=v1; k2=v2' formatted cookie string into the requests CookieJar."""
+        for item in cookie_str.split(";"):
+            item = item.strip()
+            if "=" in item:
+                k, v = item.split("=", 1)
+                self.session.cookies.set(k.strip(), v.strip(), domain=".strava.com")
+
+    def export_cookie_str(self) -> str:
+        """Export the latest cookies from the current session as a formatted string."""
+        cookie_dict = {}
+        for c in self.session.cookies:
+            cookie_dict[c.name] = c.value
+        return "; ".join([f"{k}={v}" for k, v in cookie_dict.items()])
+
+    def save_updated_cookie(self, filepath: str = STRAVA_UPDATED_COOKIE_PATH) -> None:
+        """Save the refreshed cookies to a local file for GitHub Actions to update the repository secret."""
+        updated_cookie = self.export_cookie_str()
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(updated_cookie)
+        print(f"🔄 Updated Strava cookies saved to {filepath}")
+
     def _fetch_csrf_token(self) -> str:
-        """Fetch CSRF token from training log page and verify login status."""
+        """Fetch the CSRF token from the training log page and verify authentication status."""
         resp = self.session.get(
             f"{self.BASE_URL}/athlete/training", allow_redirects=False
         )
         if resp.status_code in (301, 302):
             raise RuntimeError(
-                "Strava Cookie has expired or is invalid (redirected to login page). Please update STRAVA_COOKIE."
+                "Strava cookie is expired or invalid (redirected to login page). Please update STRAVA_COOKIE."
             )
         resp.raise_for_status()
 
@@ -61,7 +85,7 @@ class StravaWebClient:
         return match.group(1)
 
     def get_recent_activities(self, page: int = 1) -> list:
-        """Fetch recent activities via internal training activities API (20 items per page)."""
+        """Fetch recent activities via the internal training log API (20 activities per page)."""
         url = f"{self.BASE_URL}/athlete/training_activities"
         params = {
             "keywords": "",
@@ -87,7 +111,7 @@ class StravaWebClient:
         return data.get("models", [])
 
     def update_activity_name(self, activity_id: int, new_name: str) -> None:
-        """Update activity name via internal Web API."""
+        """Update activity name via the internal Web API."""
         url = f"{self.BASE_URL}/athlete/training_activities/{activity_id}"
         headers = {
             "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -99,7 +123,7 @@ class StravaWebClient:
         payload = {"name": new_name}
         resp = self.session.put(url, json=payload, headers=headers)
 
-        # If the quick edit endpoint returns an unexpected status code, fall back to the legacy activity edit form endpoint
+        # Fallback to standard activity form submission if inline edit returns an unexpected status code
         if resp.status_code not in (200, 204):
             fallback_url = f"{self.BASE_URL}/activities/{activity_id}"
             form_data = {
@@ -308,7 +332,7 @@ def get_strava_activities(
     # Initialize hashmap
     activity_map = {}
 
-    # Align time boundaries with the original logic (00:00:00 of the date in UTC+8)
+    # Set time boundaries for the date range in UTC+8
     after_bound = after_datetime_utc8.replace(
         hour=0, minute=0, second=0, microsecond=0
     )
@@ -318,7 +342,7 @@ def get_strava_activities(
 
     success = True
     try:
-        # Fetch the latest 2 pages (40 activities in total) to ensure covering all activities from the past 7 days
+        # Fetch the first 2 pages (up to 40 activities) to cover the last 7 days
         models = []
         for page in (1, 2):
             page_models = strava_client.get_recent_activities(page=page)
@@ -335,13 +359,14 @@ def get_strava_activities(
             act_dt_utc = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M:%S%z")
 
             if after_bound <= act_dt_utc <= before_bound:
-                # Convert to timezone-naive UTC string "%Y-%m-%d %H:%M:%S" to align with Garmin's startTimeGMT
+                # Format as naive UTC string "%Y-%m-%d %H:%M:%S" to match Garmin's startTimeGMT
                 formatted_start_date = act_dt_utc.astimezone(timezone.utc).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
                 act_id = item.get("id")
                 act_name = item.get("name")
 
+                # Add to hashmap with formatted_start_date as key
                 activity_map[formatted_start_date] = {
                     "id": act_id,
                     "name": act_name,
@@ -461,6 +486,9 @@ if __name__ == "__main__":
             print("Fail to init Strava client")
             exit(1)
 
+        # Export refreshed Strava session cookies immediately after successful authentication
+        strava_client.save_updated_cookie(STRAVA_UPDATED_COOKIE_PATH)
+
         # Define date range for activities (last 7 days)
         before_datetime_utc = datetime.now(timezone.utc)
         after_datetime_utc = before_datetime_utc - timedelta(days=7)
@@ -492,6 +520,9 @@ if __name__ == "__main__":
                     print("❌ Failed to get Strava activities.")
                 else:
                     print("ℹ️ No Strava activities found to sync.")
+
+            # Save cookies again in case subsequent requests issued new session cookies
+            strava_client.save_updated_cookie(STRAVA_UPDATED_COOKIE_PATH)
         else:
             if not success:
                 print("❌ Failed to get Garmin activities.")
