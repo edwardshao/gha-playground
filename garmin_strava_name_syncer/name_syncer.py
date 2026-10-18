@@ -3,7 +3,9 @@
 import argparse
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
+import requests
 
 from garminconnect import (
     Garmin,
@@ -12,13 +14,107 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 from garth.exc import GarthHTTPError
-from stravalib import Client
 
 GARMIN_TOKENS_BASE64 = os.getenv("GARMIN_TOKENS_BASE64")
 GARMIN_ACTIVITIES_OUTPUT_PATH = "garmin_activities.json"
 
-STRAVA_TOKEN_PATH = "strava_token.json"
+STRAVA_COOKIE = os.getenv("STRAVA_COOKIE")
 STRAVA_ACTIVITIES_OUTPUT_PATH = "strava_activities.json"
+
+
+class StravaWebClient:
+    """Lightweight client using Strava internal Web API instead of official API."""
+
+    BASE_URL = "https://www.strava.com"
+
+    def __init__(self, cookie_str: str):
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/130.0.0.0 Safari/537.36"
+                ),
+                "Cookie": cookie_str,
+            }
+        )
+        self.csrf_token = self._fetch_csrf_token()
+
+    def _fetch_csrf_token(self) -> str:
+        """Fetch CSRF token from training log page and verify login status."""
+        resp = self.session.get(
+            f"{self.BASE_URL}/athlete/training", allow_redirects=False
+        )
+        if resp.status_code in (301, 302):
+            raise RuntimeError(
+                "Strava Cookie has expired or is invalid (redirected to login page). Please update STRAVA_COOKIE."
+            )
+        resp.raise_for_status()
+
+        match = re.search(
+            r'<meta\s+name="csrf-token"\s+content="([^"]+)"', resp.text
+        )
+        if not match:
+            raise RuntimeError("Failed to parse csrf-token from Strava page.")
+
+        return match.group(1)
+
+    def get_recent_activities(self, page: int = 1) -> list:
+        """Fetch recent activities via internal training activities API (20 items per page)."""
+        url = f"{self.BASE_URL}/athlete/training_activities"
+        params = {
+            "keywords": "",
+            "activity_type": "",
+            "workout_type": "",
+            "commute": "",
+            "private_activities": "",
+            "trainer": "",
+            "gear": "",
+            "new_activity_only": "false",
+            "page": page,
+            "per_page": 20,
+        }
+        headers = {
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRF-Token": self.csrf_token,
+            "Referer": f"{self.BASE_URL}/athlete/training",
+        }
+        resp = self.session.get(url, params=params, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("models", [])
+
+    def update_activity_name(self, activity_id: int, new_name: str) -> None:
+        """Update activity name via internal Web API."""
+        url = f"{self.BASE_URL}/athlete/training_activities/{activity_id}"
+        headers = {
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/json; charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRF-Token": self.csrf_token,
+            "Referer": f"{self.BASE_URL}/athlete/training",
+        }
+        payload = {"name": new_name}
+        resp = self.session.put(url, json=payload, headers=headers)
+
+        # If the quick edit endpoint returns an unexpected status code, fall back to the legacy activity edit form endpoint
+        if resp.status_code not in (200, 204):
+            fallback_url = f"{self.BASE_URL}/activities/{activity_id}"
+            form_data = {
+                "_method": "patch",
+                "authenticity_token": self.csrf_token,
+                "activity[name]": new_name,
+            }
+            resp2 = self.session.post(
+                fallback_url,
+                data=form_data,
+                headers={"Referer": f"{self.BASE_URL}/activities/{activity_id}/edit"},
+            )
+            resp2.raise_for_status()
+        else:
+            resp.raise_for_status()
 
 
 def init_garmin_api():
@@ -40,18 +136,17 @@ def init_garmin_api():
 
 
 def init_strava_client():
-    with open(STRAVA_TOKEN_PATH, "r") as f:
-        token_refresh = json.load(f)
-
-    print("Strava token expires at", token_refresh["expires_at"])
-
-    client = Client(
-        access_token=token_refresh["access_token"],
-        refresh_token=token_refresh["refresh_token"],
-        token_expires=token_refresh["expires_at"],
-    )
-
-    return client
+    """Initialize Strava Web Client with Cookie."""
+    try:
+        print(
+            "ℹ️ Trying to connect to Strava Web using cookie from STRAVA_COOKIE env..."
+        )
+        client = StravaWebClient(STRAVA_COOKIE)
+        print("✅ Connected to Strava Web successfully!")
+        return client
+    except Exception as err:
+        print(f"❌ Initialize Strava Web Client error: {err}")
+        return None
 
 
 def garmin_safe_api_call(api_method, *args, **kwargs):
@@ -199,7 +294,9 @@ def get_garmin_activities(garmin_api, after_datetime_utc, before_datetime_utc):
     return success, sorted_data
 
 
-def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc):
+def get_strava_activities(
+    strava_client: StravaWebClient, after_datetime_utc, before_datetime_utc
+):
     # convert datetime to UTC+8
     after_datetime_utc8 = after_datetime_utc.astimezone(timezone(timedelta(hours=8)))
     before_datetime_utc8 = before_datetime_utc.astimezone(timezone(timedelta(hours=8)))
@@ -211,42 +308,57 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
     # Initialize hashmap
     activity_map = {}
 
-    # Remove time part for after and before datetime
-    after_datetime_utc8_no_time = after_datetime_utc8.replace(
+    # Align time boundaries with the original logic (00:00:00 of the date in UTC+8)
+    after_bound = after_datetime_utc8.replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    before_datetime_utc8_no_time = before_datetime_utc8.replace(
-        hour=0, minute=0, second=0, microsecond=0
+    before_bound = before_datetime_utc8.replace(
+        hour=23, minute=59, second=59, microsecond=999999
     )
 
     success = True
     try:
-        # Get activities in the date range
-        activities = strava_client.get_activities(
-            after=after_datetime_utc8_no_time, before=before_datetime_utc8_no_time
-        )
+        # Fetch the latest 2 pages (40 activities in total) to ensure covering all activities from the past 7 days
+        models = []
+        for page in (1, 2):
+            page_models = strava_client.get_recent_activities(page=page)
+            if not page_models:
+                break
+            models.extend(page_models)
 
-        if not activities:
+        for item in models:
+            # Example start_time format from Strava Web API: "2026-10-15T22:30:15+0000" (UTC)
+            start_time_str = item.get("start_time")
+            if not start_time_str:
+                continue
+
+            act_dt_utc = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M:%S%z")
+
+            if after_bound <= act_dt_utc <= before_bound:
+                # Convert to timezone-naive UTC string "%Y-%m-%d %H:%M:%S" to align with Garmin's startTimeGMT
+                formatted_start_date = act_dt_utc.astimezone(timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                act_id = item.get("id")
+                act_name = item.get("name")
+
+                activity_map[formatted_start_date] = {
+                    "id": act_id,
+                    "name": act_name,
+                }
+
+                print("Activity:")
+                print(f"\tid: {act_id}")
+                print(f"\tname: {act_name}")
+                print(f"\tstart_date: {formatted_start_date}")
+
+        if not activity_map:
             print(
                 f"ℹ️ Can not find activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}."
             )
         else:
-            print(f"✅ Retrieved {len(list(activities))} activities from Strava.")
+            print(f"✅ Retrieved {len(activity_map)} activities from Strava.")
 
-            for i, activity in enumerate(activities):
-                # Format start_date
-                formatted_start_date = activity.start_date.strftime("%Y-%m-%d %H:%M:%S")
-
-                # Add to hashmap with formatted_start_date as key
-                activity_map[formatted_start_date] = {
-                    "id": activity.id,
-                    "name": activity.name,
-                }
-
-                print("Activity:")
-                print(f"\tid: {activity.id}")
-                print(f"\tname: {activity.name}")
-                print(f"\tstart_date: {formatted_start_date}")
     except Exception as e:
         print(
             f"❌ Failed to get activities from {after_datetime_utc8.date()} to {before_datetime_utc8.date()}. - {e}"
@@ -258,11 +370,11 @@ def get_strava_activities(strava_client, after_datetime_utc, before_datetime_utc
     return success, sorted_data
 
 
-def strava_update_activity_name(strava_client, activity_id, new_name):
+def strava_update_activity_name(strava_client: StravaWebClient, activity_id, new_name):
     print(f'Updating Strava activity ID {activity_id} name to "{new_name}"...')
 
     try:
-        strava_client.update_activity(activity_id, name=new_name)
+        strava_client.update_activity_name(activity_id, new_name)
         print(f'✅ Update Strava activity name to "{new_name}" successfully')
     except Exception as e:
         print(f"❌ Fail to update activity name - {e}")
@@ -308,17 +420,8 @@ def env_pre_check():
     if not GARMIN_TOKENS_BASE64:
         print("GARMIN_TOKENS_BASE64 environment variable is not set.")
         exit(1)
-    if not os.getenv("STRAVA_CLIENT_ID"):
-        print("STRAVA_CLIENT_ID environment variable is not set.")
-        exit(1)
-    if not os.getenv("STRAVA_CLIENT_SECRET"):
-        print("STRAVA_CLIENT_SECRET environment variable is not set.")
-        exit(1)
-    if not os.getenv("SILENCE_TOKEN_WARNINGS"):
-        print("SILENCE_TOKEN_WARNINGS environment variable is not set.")
-        exit(1)
-    if not os.path.exists(STRAVA_TOKEN_PATH):
-        print(f'Strava token file "{STRAVA_TOKEN_PATH}" does not exist.')
+    if not STRAVA_COOKIE:
+        print("STRAVA_COOKIE environment variable is not set.")
         exit(1)
 
 
@@ -352,13 +455,11 @@ if __name__ == "__main__":
             print("Fail to init Garmin API")
             exit(1)
 
-        # Initialize Strava client
+        # Initialize Strava Web Client
         strava_client = init_strava_client()
         if not strava_client:
             print("Fail to init Strava client")
             exit(1)
-        athlete = strava_client.get_athlete()
-        print(f"Hi, {athlete.firstname} Welcome to stravalib!")
 
         # Define date range for activities (last 7 days)
         before_datetime_utc = datetime.now(timezone.utc)

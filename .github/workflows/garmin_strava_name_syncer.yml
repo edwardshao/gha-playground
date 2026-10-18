@@ -11,15 +11,11 @@ jobs:
         include:
           - user: edward
             garmin_token_name: GARMIN_TOKENS_BASE64
-            strava_token_name: EDWARD_STRAVA_TOKEN_BASE64
-            strava_client_id_name: EDWARD_STRAVA_CLIENT_ID
-            strava_client_secret_name: EDWARD_STRAVA_CLIENT_SECRET
+            strava_cookie_name: EDWARD_STRAVA_COOKIE
             run_cmd_args: --sync-ignore-file ./syncginore.txt
           - user: joey
             garmin_token_name: JOEY_GARMIN_TOKENS_BASE64
-            strava_token_name: JOEY_STRAVA_TOKEN_BASE64
-            strava_client_id_name: JOEY_STRAVA_CLIENT_ID
-            strava_client_secret_name: JOEY_STRAVA_CLIENT_SECRET
+            strava_cookie_name: JOEY_STRAVA_COOKIE
             run_cmd_args: ""
 
     runs-on: ubuntu-latest
@@ -41,11 +37,6 @@ jobs:
       - name: Install dependencies and setup environment
         run: |
           uv sync --locked
-      - name: Decode secret and create Strava token to file
-        env:
-          STRAVA_TOKEN_BASE64: ${{ secrets[matrix.strava_token_name] }}
-        run: |
-          echo "${{ env.STRAVA_TOKEN_BASE64 }}" | base64 --decode > strava_token.json
       - name: Start mitmproxy
         env:
           PROXY_SERVER: ${{ secrets.PROXY_SERVER }}
@@ -54,9 +45,7 @@ jobs:
       - name: Run name syncer
         env:
           GARMIN_TOKENS_BASE64: ${{ secrets[matrix.garmin_token_name] }}
-          STRAVA_CLIENT_ID: ${{ secrets[matrix.strava_client_id_name] }}
-          STRAVA_CLIENT_SECRET: ${{ secrets[matrix.strava_client_secret_name] }}
-          SILENCE_TOKEN_WARNINGS: "true"
+          STRAVA_COOKIE: ${{ secrets[matrix.strava_cookie_name] }}
           HTTP_PROXY: http://localhost:8080
           HTTPS_PROXY: http://localhost:8080
           REQUESTS_CA_BUNDLE: mitmproxy-ca-cert.pem
